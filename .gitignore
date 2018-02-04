@@ -40,3 +40,4 @@ jspm_packages
 **/out
 **/yarn.lock
 **/yarn-error.log
+/.vscode

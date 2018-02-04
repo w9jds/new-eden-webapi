@@ -1,0 +1,12 @@
+{
+  "compileOnSave": true,
+  "compilerOptions": {
+    "importHelpers": true,
+    "target": "es6",
+    "alwaysStrict": true,
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "removeComments": true,
+    "preserveConstEnums": true
+  }
+}

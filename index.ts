@@ -1,101 +1,58 @@
-import admin, {database, auth} from 'firebase-admin';
-import {Server, Request, ReplyNoContinue} from 'hapi';
+import * as admin from 'firebase-admin';
+import {Server, ServerOptions} from 'hapi';
 import Authentication from './endpoints/auth';
 import {DatabaseConfig} from './config/config';
 import * as jwt from 'jsonwebtoken';
 import * as cert from './config/firebase-admin.json';
 
-let server: Server = new Server();
+const server: Server = new Server({
+    port: process.env.PORT || 8000,
+    host: '0.0.0.0'
+});
 
 let firebase = admin.initializeApp({
     credential: admin.credential.cert(cert as admin.ServiceAccount),
     databaseURL: DatabaseConfig.databaseURL
 });
 
-let authentication = new Authentication(firebase.database(), firebase.auth());
+async function init(): Promise<Server> {
+    createRoutes();
+    
+    await server.start();
 
-server.connection({
-    port: process.env.PORT || 8080,
-    host: '0.0.0.0'
-});
+    return server;
+}
 
-const validate = (request, decodedToken, callback) => {
-    admin.auth().getUser(decodedToken.accountId)
-        .then(userRecord => {
-            return callback({}, true, userRecord.toJSON());
-        })
-        .catch(error => {
-            console.log("Error fetching user data:", error);
-        });
-};
-
-server.register([require('inert'), require('hapi-auth-jwt')], error => {
-    if (error) {
-        throw error;
-    }
-
-    server.auth.strategy('jwt', 'jwt', {
-        key: process.env.JWT_SECRET_KEY,
-        validateFunc: validate,
-        verifyOptions: { 
-            algorithms: ['HS256'] 
-        }
-    });
-
-
+const createRoutes = () => {
+    let authentication = new Authentication(firebase.database(), firebase.auth());
 
     server.route({
         method: 'GET',
         path: '/auth/login',
-        config: {
-            auth: false,
-            handler: authentication.loginHandler
-        }
+        handler: authentication.loginHandler
     });
 
     server.route({
         method: 'GET',
         path: '/auth/register',
-        config: {
-            auth: false,
-            handler: authentication.registerHandler
-        }
+        handler: authentication.registerHandler
     });
 
     server.route({
         method: 'GET',
         path: '/login/callback',
-        config: {
-            auth: false,
-            handler: authentication.loginCallbackHandler
-        }
+        handler: authentication.loginCallbackHandler
     });
 
     server.route({
         method: 'GET',
         path: '/register/callback',
-        config: {
-            auth: false,
-            handler: authentication.registerCallbackHandler
-        }
+        handler: authentication.registerCallbackHandler
     });
+}
 
-    server.route({
-        method: 'GET',
-        path: '/auth/verify',
-        config: {
-            auth: 'token',
-
-        }
-    });
-
-    server.start(error => {
-        if (error) {
-            throw error;
-        }
-
-        console.log(`Server running at: ${server.info.uri}`);
-    });
+init().then(server => {
+    console.log('Server running at:', server.info.uri);
+}).catch(error => {
+    console.log(error);  
 });
-
-export default server;

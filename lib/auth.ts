@@ -1,5 +1,4 @@
-import * as esi from './esi';
-import {UserAgent, EveClientId, EveSecret} from '../config/config';
+import {UserAgent} from '../config/config';
 import {verifyResponse} from './esi';
 
 let headers = {
@@ -7,11 +6,11 @@ let headers = {
     'User-Agent' : UserAgent
 };
 
-export const login = (code: string): Promise<any> => {
+export const login = (code: string, clientId: string, secret: string): Promise<any> => {
     return fetch('https://login.eveonline.com/oauth/token', {
         method: 'POST',
         headers: {
-            'Authorization': 'Basic ' + new Buffer(EveClientId + ':' + EveSecret).toString('base64'),
+            'Authorization': 'Basic ' + new Buffer(clientId + ':' + secret).toString('base64'),
             'Host': 'login.eveonline.com',
             'Content-Type': 'application/x-www-form-urlencoded',
             ...headers
@@ -38,11 +37,11 @@ export const verify = (type: string, token: string): Promise<any> => {
     });
 }
 
-export const refresh = (refreshToken: string): Promise<any> => {
+export const refresh = (refreshToken: string, clientId: string, secret: string): Promise<any> => {
     return fetch('https://login.eveonline.com/oauth/token', {
         method: 'POST',
         headers: {
-            'Authorization': 'Basic ' + new Buffer(EveClientId + ':' + EveSecret).toString('base64'),
+            'Authorization': 'Basic ' + new Buffer(clientId + ':' + secret).toString('base64'),
             'Content-Type': 'application/x-www-form-urlencoded',
             'Host': 'login.eveonline.com'
         },

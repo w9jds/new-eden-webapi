@@ -10,7 +10,7 @@ module.exports = {
         server: ['babel-polyfill', 'isomorphic-fetch', './index.ts']   
     },
     output: {
-        path: path.resolve(__dirname, './build/server'),
+        path: path.resolve(__dirname, './build'),
         filename: '[name].js',
     },
     module: {

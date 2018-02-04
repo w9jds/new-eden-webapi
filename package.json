@@ -11,7 +11,9 @@
     "node": "9.x"
   },
   "scripts": {
-    "start": "node ./build/server.js"
+    "build": "webpack --verbose --colors",
+    "build-prod": "webpack -p --verbose --colors",
+    "build-watch": "webpack --watch --verbose --colors"
   },
   "dependencies": {
     "babel-polyfill": "^6.26.0",
@@ -31,6 +33,7 @@
     "babel-loader": "^7.1.2",
     "babel-preset-env": "^1.6.1",
     "ts-loader": "^3.4.0",
+    "tslint": "^5.9.1",
     "typescript": "^2.7.1",
     "webpack": "^3.10.0",
     "webpack-dev-middleware": "^2.0.4",
