@@ -1,18 +1,18 @@
 import * as admin from 'firebase-admin';
-import {Server, ServerOptions} from 'hapi';
+import {Server} from 'hapi';
 import Authentication from './endpoints/auth';
 import {DatabaseConfig} from './config/config';
 import * as jwt from 'jsonwebtoken';
 import * as cert from './config/firebase-admin.json';
 
-const server: Server = new Server({
-    port: process.env.PORT || 8000,
-    host: '0.0.0.0'
-});
-
 let firebase = admin.initializeApp({
     credential: admin.credential.cert(cert as admin.ServiceAccount),
     databaseURL: DatabaseConfig.databaseURL
+});
+
+const server: Server = new Server({
+    port: process.env.PORT || 8000,
+    host: '0.0.0.0'
 });
 
 async function init(): Promise<Server> {
@@ -36,6 +36,18 @@ const createRoutes = () => {
         method: 'GET',
         path: '/auth/register',
         handler: authentication.registerHandler
+    });
+
+    server.route({
+        method: 'GET',
+        path: '/auth/verify/{userId}',
+        handler: authentication.verifyHandler
+    });
+
+    server.route({
+        method: 'GET',
+        path: '/auth/addCharacter',
+        handler: authentication.addCharacterHandler
     });
 
     server.route({
