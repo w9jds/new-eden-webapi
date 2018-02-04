@@ -1,10 +1,10 @@
-// import {Character} from '../models/character';
-// import {UserAgent} from '../config/config';
+import {UserAgent} from '../config/config';
+import { access } from 'fs';
 
-// let headers = {
-//     'Accept': 'application/json',
-//     'User-Agent' : UserAgent
-// };
+let headers = {
+    'Accept': 'application/json',
+    'User-Agent' : UserAgent
+};
 
 export const verifyResponse = (response: Response): Promise<any> => {
     if (response.status >= 200 && response.status <= 300) {
@@ -47,12 +47,22 @@ export const verifyResponse = (response: Response): Promise<any> => {
 //     }).then(verifyResponse);
 // }
 
-// export const getCharacter = (id: string): Promise<any> => {
-//     return fetch(`https://esi.tech.ccp.is/latest/characters/${id}`, {
-//         method: 'GET',
-//         headers
-//     }).then(verifyResponse);
-// }
+export const getCharacter = (id: string): Promise<any> => {
+    return fetch(`https://esi.tech.ccp.is/latest/characters/${id}`, {
+        method: 'GET',
+        headers
+    }).then(verifyResponse);
+}
+
+export const getRoles = (id: string, accessToken: string) => {
+    return fetch(`https://esi.tech.ccp.is/v2/characters/${id}/roles/`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            ...headers
+        }
+    }).then(verifyResponse);
+}
 
 // export const getCharacterOnline = (character): Promise<any> => {
 //     return new Promise((resolve, reject) => {
@@ -114,12 +124,12 @@ export const verifyResponse = (response: Response): Promise<any> => {
 //     }).then(verifyResponse);
 // };
 
-// export const getCorporation = (id: string): Promise<any> => {
-//     return fetch(`https://esi.tech.ccp.is/v4/corporations/${id}/`, {
-//         method: 'GET',
-//         headers
-//     }).then(verifyResponse);
-// }
+export const getCorporation = (id: string): Promise<any> => {
+    return fetch(`https://esi.tech.ccp.is/v4/corporations/${id}/`, {
+        method: 'GET',
+        headers
+    }).then(verifyResponse);
+}
 
 // export const getSystem = (id: string): Promise<any> => {
 //     return fetch(`https://esi.tech.ccp.is/latest/universe/systems/${id}/`, {

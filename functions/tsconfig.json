@@ -1,0 +1,20 @@
+{
+  "compileOnSave": true,
+  "compilerOptions": {
+    "importHelpers": true,
+    "target": "es6",
+    "module": "commonjs",
+    "outDir": "./",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "strictNullChecks": false
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

@@ -92,7 +92,7 @@ export default class Authentication {
             let accountId: string = FirebaseUtils.generateKey();
 
             return Promise.all([
-                this.firebase.ref(`character/${verification.CharacterID}`).set(this.createCharacter(tokens, verification, accountId)),
+                this.firebase.ref(`characters/${verification.CharacterID}`).set(this.createCharacter(tokens, verification, accountId)),
                 this.firebase.ref(`users/${accountId}`).set({
                     id: record.uid,
                     mainId: verification.CharacterID,
