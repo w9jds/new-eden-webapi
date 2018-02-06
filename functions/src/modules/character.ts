@@ -9,7 +9,8 @@ export default class CharacterHandlers {
     public onNewCharacter = database.ref('characters/{characterId}').onCreate((event: Event<database.DeltaSnapshot>) => {
         return Promise.all([
             getCharacter(event.params.characterId),
-            getRoles(event.params.characterId, event.data.current.child('sso/accessToken').val())
+            getRoles(event.params.characterId, event.data.current.child('sso/accessToken').val()),
+            // getTitle(event.params.characterId, event.data.current.child('sso/accessToken').val())
         ]).then(responses => {
             console.log(responses);
 

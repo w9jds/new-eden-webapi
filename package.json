@@ -12,11 +12,10 @@
   },
   "scripts": {
     "build": "webpack --verbose --colors",
-    "build-prod": "webpack -p --verbose --colors",
+    "build-prod": "npm run build && docker build -t us.gcr.io/new-eden-storage-a5c23/webapi .",
     "build-watch": "webpack --watch --verbose --colors"
   },
   "dependencies": {
-    
     "babel-polyfill": "^6.26.0",
     "boom": "^7.1.1",
     "firebase-admin": "^5.8.2",

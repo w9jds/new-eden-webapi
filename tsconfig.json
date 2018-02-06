@@ -3,10 +3,12 @@
   "compilerOptions": {
     "importHelpers": true,
     "target": "es6",
-    "alwaysStrict": true,
+    "module": "commonjs",
+    "outDir": "./out",
     "moduleResolution": "node",
     "sourceMap": true,
     "removeComments": true,
-    "preserveConstEnums": true
+    "preserveConstEnums": true,
+    "strictNullChecks": false
   }
 }

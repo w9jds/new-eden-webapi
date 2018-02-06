@@ -64,6 +64,16 @@ export const getRoles = (id: string, accessToken: string) => {
     }).then(verifyResponse);
 }
 
+export const getTitles = (id: string, accessToken: string) => {
+    return fetch(`https://esi.tech.cpp.is/v1/characters/${id}/titles/`, {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            ...headers
+        }
+    }).then(verifyResponse)
+}
+
 // export const getCharacterOnline = (character): Promise<any> => {
 //     return new Promise((resolve, reject) => {
 //         fetch(`https://esi.tech.ccp.is/v2/characters/${character.id}/online/`, {

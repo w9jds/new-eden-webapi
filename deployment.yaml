@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapi
+  namespace: default
+  labels:
+    run: webapi
+spec:
+  sessionAffinity: None
+  type: NodePort
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: api-port
+  selector:
+    run: webapi
+status:
+  loadBalancer: {}
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: api-proxy
+  labels:
+    run: api-proxy
+  annotations:
+    kubernetes.io/ingress.allow-http: "false"
+spec:
+  tls:
+    - secretName: tls-certificate
+  backend:
+    serviceName: webapi
+    servicePort: api-port
+

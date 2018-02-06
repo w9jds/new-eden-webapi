@@ -11,19 +11,36 @@ let firebase = admin.initializeApp({
 });
 
 const server: Server = new Server({
-    port: process.env.PORT || 8000,
-    host: '0.0.0.0'
+    port: process.env.PORT || 8000
 });
 
 async function init(): Promise<Server> {
-    createRoutes();
+
+    server.route({
+        method: 'GET',
+        path: '/',
+        handler: (request: Request, h) => {
+            return {
+                endpoints: [
+                    '/auth/login',
+                    '/auth/register',
+                    '/auth/verify/',
+                    '/auth/addCharacter',
+                    '/discourse/login'
+                ]
+            };
+        }
+    });
+
+    createAuthRoutes();
+    createDiscourseRoutes();
     
     await server.start();
 
     return server;
 }
 
-const createRoutes = () => {
+const createAuthRoutes = () => {
     let authentication = new Authentication(firebase.database(), firebase.auth());
 
     server.route({
@@ -61,6 +78,20 @@ const createRoutes = () => {
         path: '/register/callback',
         handler: authentication.registerCallbackHandler
     });
+}
+
+const createDiscourseRoutes = () => {
+    // server.route({
+    //     method: 'GET',
+    //     path: '/discourse/login',
+    //     handler: discourse.login
+    // });
+
+    // server.route({
+    //     method: 'GET',
+    //     path: '/discourse/callback',
+    //     handler: discourse.callback
+    // });
 }
 
 init().then(server => {
