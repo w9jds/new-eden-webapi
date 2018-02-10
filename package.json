@@ -12,7 +12,7 @@
   },
   "scripts": {
     "build": "webpack --verbose --colors",
-    "build-prod": "npm run build && docker build -t us.gcr.io/new-eden-storage-a5c23/webapi .",
+    "build-prod": "npm run build && docker build -t chingy-webapi .",
     "build-watch": "webpack --watch --verbose --colors"
   },
   "dependencies": {
@@ -25,9 +25,9 @@
     "moment": "^2.20.1"
   },
   "devDependencies": {
+    "@types/boom": "^7.1.1",
     "@types/isomorphic-fetch": "^0.0.34",
     "@types/jsonwebtoken": "^7.2.5",
-    "@types/boom": "^7.1.1",
     "@types/node": "^9.4.0",
     "babel-core": "^6.26.0",
     "babel-loader": "^7.1.2",

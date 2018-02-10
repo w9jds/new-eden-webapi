@@ -126,13 +126,17 @@ class CharacterHandlers {
         this.onNewCharacter = firebase_functions_1.database.ref('characters/{characterId}').onCreate((event) => {
             return Promise.all([
                 esi_1.getCharacter(event.params.characterId),
-                esi_1.getRoles(event.params.characterId, event.data.current.child('sso/accessToken').val())
+                esi_1.getRoles(event.params.characterId, event.data.current.child('sso/accessToken').val()),
+                esi_1.getTitles(event.params.characterId, event.data.current.child('sso/accessToken').val())
             ]).then(responses => {
-                console.log(responses);
                 return event.data.ref.update({
                     corpId: responses[0].corporation_id,
-                    allianceId: responses[0].alliance_id,
-                    roles: responses[1].roles
+                    allianceId: responses[0].alliance_id || null,
+                    roles: responses[1] ? responses[1].roles || null : null,
+                    titles: responses[2].reduce((result, current) => {
+                        result[current.title_id] = current.name;
+                        return result;
+                    }, {})
                 });
             });
         });
@@ -190,6 +194,12 @@ exports.getRoles = (id, accessToken) => {
         headers: Object.assign({ 'Authorization': `Bearer ${accessToken}` }, headers)
     }).then(exports.verifyResponse);
 };
+exports.getTitles = (id, accessToken) => {
+    return fetch(`https://esi.tech.ccp.is/v1/characters/${id}/titles/`, {
+        method: 'GET',
+        headers: Object.assign({ 'Authorization': `Bearer ${accessToken}` }, headers)
+    }).then(exports.verifyResponse);
+};
 exports.getCorporation = (id) => {
     return fetch(`https://esi.tech.ccp.is/v4/corporations/${id}/`, {
         method: 'GET',
@@ -216,9 +226,10 @@ exports.EveScopes = [
     'esi-location.read_ship_type.v1',
     'esi-characters.read_contacts.v1',
     'esi-wallet.read_character_wallet.v1',
+    'esi-industry.read_character_mining.v1',
     'esi-characters.read_corporation_roles.v1',
     'esi-contracts.read_character_contracts.v1',
-    'esi-contracts.read_corporation_contracts.v1'
+    'esi-contracts.read_corporation_contracts.v1',
 ];
 exports.DatabaseConfig = {
     apiKey: process.env.DATABASE_API_KEY,

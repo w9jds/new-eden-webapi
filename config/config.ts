@@ -10,9 +10,10 @@ export const EveScopes = [
     'esi-location.read_ship_type.v1',
     'esi-characters.read_contacts.v1',
     'esi-wallet.read_character_wallet.v1',
+    'esi-industry.read_character_mining.v1',
     'esi-characters.read_corporation_roles.v1',
     'esi-contracts.read_character_contracts.v1',
-    'esi-contracts.read_corporation_contracts.v1'
+    'esi-contracts.read_corporation_contracts.v1',
 ];
 
 export const DatabaseConfig = {

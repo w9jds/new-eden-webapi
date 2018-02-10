@@ -1,35 +1,69 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    run: webapi
+  name: webapi
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: webapi
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: webapi
+    spec:
+      containers:
+      - image: [Docker Image Path Here]
+        imagePullPolicy: IfNotPresent
+        name: webapi
+        ports:
+        - containerPort: 8000
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+---
 apiVersion: v1
 kind: Service
 metadata:
   name: webapi
   namespace: default
-  labels:
-    run: webapi
 spec:
-  sessionAffinity: None
   type: NodePort
   ports:
-    - port: 8000
-      targetPort: 8000
-      protocol: TCP
-      name: api-port
+  - port: 8000
+    targetPort: 8000
+    protocol: TCP
+    name: https
   selector:
     run: webapi
-status:
-  loadBalancer: {}
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: api-proxy
-  labels:
-    run: api-proxy
-  annotations:
-    kubernetes.io/ingress.allow-http: "false"
+  name: chingy-tls
+  namespace: default
+  # annotations:
+  #   kubernetes.io/ingress.allow-http: "false"
 spec:
   tls:
-    - secretName: tls-certificate
+  - hosts:
+    - api.chingy.tools
+    secretName: godaddy-chingytools-tls
   backend:
     serviceName: webapi
-    servicePort: api-port
-
+    servicePort: https

@@ -1,8 +1,14 @@
 import { Character } from "./character";
 
 export interface Payload {
-    id: number;
-    name: string;
-    accountId: string;
-    firebase_token: string;
+    iss: string;
+    sub: string;
+    aud: string;
+    mainId: string | number;
+    accountId?: string | number;
+}
+
+export interface State extends Payload {
+    type?: string;
+    redirect?: string;
 }

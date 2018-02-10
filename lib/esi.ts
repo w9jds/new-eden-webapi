@@ -65,7 +65,7 @@ export const getRoles = (id: string, accessToken: string) => {
 }
 
 export const getTitles = (id: string, accessToken: string) => {
-    return fetch(`https://esi.tech.cpp.is/v1/characters/${id}/titles/`, {
+    return fetch(`https://esi.tech.ccp.is/v1/characters/${id}/titles/`, {
         method: 'GET',
         headers: {
             'Authorization': `Bearer ${accessToken}`,
