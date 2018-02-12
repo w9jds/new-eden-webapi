@@ -148,12 +148,12 @@ export const getCorporation = (id: string): Promise<any> => {
 //     }).then(verifyResponse);
 // }
 
-// export const getRoute = (origin: string | number, destination: string | number, flag: string): Promise<any> => {
-//     return fetch(`https://esi.tech.ccp.is/latest/route/${origin}/${destination}/?flag=${flag}`, {
-//         method: 'GET',
-//         headers
-//     }).then(verifyResponse);
-// }
+export const getRoute = (origin: string | number, destination: string | number, flag: string): Promise<any> => {
+    return fetch(`https://esi.tech.ccp.is/latest/route/${origin}/${destination}/?flag=${flag}`, {
+        method: 'GET',
+        headers
+    }).then(verifyResponse);
+}
 
 // export const getSystemJumps = (): Promise<any> => {
 //     return fetch('https://esi.tech.ccp.is/latest/universe/system_jumps/?datasource=tranquility', {

@@ -32,3 +32,7 @@ export const RegisterRedirect = process.env.REGISTER_REDIRECT_URI;
 export const LoginClientId = process.env.LOGIN_CLIENT_ID;
 export const LoginSecret = process.env.LOGIN_SECRET;
 export const LoginRedirect = process.env.LOGIN_REDIRECT_URI
+
+export const ForumClientId = process.env.FORUM_CLIENT_ID;
+export const ForumSecret = process.env.FORUM_SECRET;
+export const ForumRedirect = process.env.FORUM_REDIRECT_URI;

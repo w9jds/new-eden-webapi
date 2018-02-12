@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin';
 import {Server} from 'hapi';
 import Authentication, {verifyJwt} from './endpoints/auth';
+import Discourse from './endpoints/discourse';
 import {DatabaseConfig} from './config/config';
 import * as jwt from 'jsonwebtoken';
 import * as cert from './config/firebase-admin.json';
@@ -167,17 +168,19 @@ const createAuthRoutes = () => {
 }
 
 const createDiscourseRoutes = () => {
-    // server.route({
-    //     method: 'GET',
-    //     path: '/discourse/login',
-    //     handler: discourse.login
-    // });
+    let discourse = new Discourse();
 
-    // server.route({
-    //     method: 'GET',
-    //     path: '/discourse/callback',
-    //     handler: discourse.callback
-    // });
+    server.route({
+        method: 'GET',
+        path: '/discourse/login',
+        handler: discourse.loginHandler
+    });
+
+    server.route({
+        method: 'GET',
+        path: '/discourse/callback',
+        handler: discourse.callbackHandler
+    });
 }
 
 init().then(server => {

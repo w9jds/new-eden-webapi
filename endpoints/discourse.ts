@@ -1,56 +1,74 @@
-// import * as moment from 'moment';
-// import {Request, ReplyNoContinue} from 'hapi';
-// import * as CryptoJs from 'crypto-js';
+import * as moment from 'moment';
+import * as CryptoJs from 'crypto-js';
+import * as jwt from 'jsonwebtoken';
+import * as queryString from 'query-string';
 
-// import {LoginClientId, LoginRedirect} from '../config/config';
-// import * as queryString from 'query-string';
-// import * as atob from 'atob';
-// import * as btoa from 'btoa';
+import { internal, unauthorized } from 'boom';
+import { login, verify } from '../lib/auth';
+import { getCharacter } from '../lib/esi';
+import { ForumClientId, ForumSecret, ForumRedirect } from '../config/config';
 
-// export default class Discourse {
+import * as atob from 'atob';
+import * as btoa from 'btoa';
 
-//     constructor() { }
+export const verifyJwt = (token) => {
+    try {
+        return jwt.verify(token, process.env.JWT_SECRET_KEY);
+    }
+    catch(error) {
+        throw unauthorized(error);
+    }
+}
 
-//     public loginHandler = (request: Request, reply: ReplyNoContinue): void => {
-//         this.states[request.query.sig] = queryString.parse(atob(request.query.sso));
-//         let hash = CryptoJs.HmacSHA256(request.query.sso, this.secret);
+export default class Discourse {
 
-//         if (hash.toString() == request.query.sig) {
-//             reply.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${this.redirect}&client_id=${this.clientId}&state=${request.query.sig}`);
-//         }
-//         else {
-//             reply({}).code(401);
-//         } 
-//     }
+    constructor() { }
 
-//     public callbackHandler = (request: Request, reply: ReplyNoContinue): void => {
-//         this.verify(request, reply, request.query.state);
-//     }
+    public loginHandler = (request, h): void => {
+        let hash = CryptoJs.HmacSHA256(request.query.sso, ForumSecret);
+        let state = jwt.sign({
+            sso: queryString.parse(atob(request.query.sso)),
+            sig: request.query.sig
+        }, process.env.JWT_SECRET_KEY);
 
-//     private verify = (request: Request, reply: ReplyNoContinue, state: string): void => {
-//         auth.loginCharacter(request.query.code, this.clientId, this.secret).then(data => {
-//             let sso = this.states[state];
-//             let query = {
-//                 email: `${data.verification.CharacterID}@gmail.com`,
-//                 nonce: sso.nonce,
-//                 external_id: data.verification.CharacterID,
-//                 username: data.character.name.replace(' ', '_'),
-//                 name: data.character.name,
-//                 avatar_url: `https://imageserver.eveonline.com/Character/${data.verification.CharacterID}_256.jpg`
-//             };
+        if (hash.toString() == request.query.sig) {
+            return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${ForumRedirect}&client_id=${ForumClientId}&state=${state}`);
+        }
+        else {
+            throw unauthorized();
+        }
+    }
 
-//             delete this.states[state];
-//             if (data.character.alliance_id == 99006117) {
-//                 let payload = btoa(queryString.stringify(query));
-//                 let sig = CryptoJs.HmacSHA256(payload, this.secret).toString();
+    public callbackHandler = (request, h) => {
+        let characterId: string;
+
+        return login(request.query.code, ForumClientId, ForumSecret).then(response => {
+            return verify(response.token_type, response.access_token);
+        }).then(response => {
+            characterId = response.CharacterID;
+            return getCharacter(characterId)
+        }).then(character => {
+            let state = verifyJwt(request.query.state);
+            let query = {
+                email: `${characterId}@gmail.com`,
+                nonce: state['sso'].nonce,
+                external_id: characterId,
+                username: character.name.replace(' ', '_'),
+                name: character.name,
+                avatar_url: `https://imageserver.eveonline.com/Character/${characterId}_256.jpg`
+            };
     
-//                 reply.redirect(`${sso.return_sso_url}?sso=${payload}&sig=${sig}`);
-//             }
-//             else {
-//                 reply.redirect(sso.return_sso_url).code(403);
-//             }
-//         }).catch(error => {
-//             reply(error).code(403);
-//         });
-//     }
-// }
+            if (character.alliance_id == 99006117) {
+                let payload = btoa(queryString.stringify(query));
+                let sig = CryptoJs.HmacSHA256(payload, ForumSecret).toString();
+    
+                return h.redirect(`${state['sso'].return_sso_url}?sso=${payload}&sig=${sig}`);
+            }
+            else {
+                throw unauthorized();
+            }
+        }).catch(error => {
+            throw internal(error);
+        })
+    }
+}
