@@ -1,12 +1,16 @@
 import * as admin from 'firebase-admin';
-import {Server} from 'hapi';
-import Authentication, {verifyJwt} from './endpoints/auth';
-import Discourse from './endpoints/discourse';
-import {DatabaseConfig} from './config/config';
 import * as jwt from 'jsonwebtoken';
 import * as cert from './config/firebase-admin.json';
-import { Payload } from './models/payload';
+import { Server, Request, ResponseToolkit, ServerAuthSchemeOptions } from 'hapi';
 import { unauthorized } from 'boom';
+
+import Authentication, {verifyJwt} from './endpoints/auth';
+import Discourse from './endpoints/discourse';
+import Api from './endpoints/api';
+
+import { DatabaseConfig } from './config/config';
+import { Payload } from './models/payload';
+import { Character } from './models/character';
 
 let firebase = admin.initializeApp({
     credential: admin.credential.cert(cert as admin.ServiceAccount),
@@ -18,11 +22,37 @@ const server: Server = new Server({
     host: '0.0.0.0'
 });
 
-const scheme = (server, options) => {
+const firebaseScheme = (server: Server, options: ServerAuthSchemeOptions) => {
     return {
-        authenticate: (request, h) => {
-            const authorization = request.headers.authorization;
+        authenticate: (request: Request, h: ResponseToolkit) => {
+            let header = request.headers.authorization;
 
+            if (!header || header.split(' ')[0] != 'Bearer') {
+                throw unauthorized();
+            }
+
+            return admin.auth().verifyIdToken(header.split(' ')[1]).then((decodedToken: admin.auth.DecodedIdToken) => {
+                if (decodedToken.uid == request.params.userId) {
+                    return admin.database().ref(`characters/${decodedToken.uid}`).once('value');
+                }
+                else {
+                    throw unauthorized('invalid_client: Token is for another user');
+                }
+            }).then((snapshot: admin.database.DataSnapshot) => {
+                return h.authenticated({
+                    credentials: snapshot.val() as Character
+                });
+            }).catch(error => {
+                throw unauthorized(error);
+            });
+            
+        }
+    };
+};
+
+const jwtScheme = (server: Server, options: ServerAuthSchemeOptions) => {
+    return {
+        authenticate: (request: Request, h: ResponseToolkit) => {
             let header = request.headers.authorization;
 
             if (!header || header.split(' ')[0] != 'Bearer') {
@@ -53,9 +83,6 @@ const scheme = (server, options) => {
 
 async function init(): Promise<Server> {
 
-    server.auth.scheme('jwt', scheme);
-    server.auth.strategy('jwt-auth', 'jwt');
-
     server.route({
         method : 'OPTIONS',
         path : '/{params*}',
@@ -64,17 +91,9 @@ async function init(): Promise<Server> {
                 return h.response({ok: true})
                     .header('Access-Control-Allow-Origin', request.headers.origin || request.headers.Origin)
                     .header('Access-Control-Allow-Credentials', 'true')
-                    .header('Access-Control-Allow-Methods', 'GET, POST, PUT')
+                    .header('Access-Control-Allow-Methods', 'GET, POST')
                     .header('Access-Control-Allow-Headers', 'authorization');
             }
-        }
-    });
-
-    server.route({
-        method: 'GET',
-        path: '/.well-known/acme-challenge/{token}',
-        handler: (request, h) => {            
-            return {};
         }
     });
 
@@ -97,6 +116,7 @@ async function init(): Promise<Server> {
         }
     });
 
+    createApiRoutes();
     createAuthRoutes();
     createDiscourseRoutes();
     
@@ -105,8 +125,44 @@ async function init(): Promise<Server> {
     return server;
 }
 
+const createApiRoutes = () => {
+    let api = new Api(firebase.database());
+
+    server.auth.scheme('firebase', firebaseScheme);
+    server.auth.strategy('firebase-auth', 'firebase');
+
+    server.route({
+        method: 'POST',
+        path: '/ui/waypoint/{userId*}',
+        handler: api.waypointHandler,
+        options: {
+            auth: 'firebase-auth',
+            cors: {
+                origin: ['*'],
+                additionalHeaders: ['authorization']
+            }
+        }
+    });
+
+    server.route({
+        method: 'POST',
+        path: '/universe/routes/',
+        handler: api.routesHandler,
+        options: {
+            auth: false,
+            cors: {
+                origin: ['*'],
+                additionalHeaders: ['authorization']
+            }
+        }
+    });
+}
+
 const createAuthRoutes = () => {
     let authentication = new Authentication(firebase.database(), firebase.auth());
+
+    server.auth.scheme('jwt', jwtScheme);
+    server.auth.strategy('jwt-auth', 'jwt');
 
     server.route({
         method: 'GET',

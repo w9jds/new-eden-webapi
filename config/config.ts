@@ -1,5 +1,8 @@
 
 export const UserAgent = 'Account Management - Chingy Chonga/Jeremy Shore - w9jds@live.com';
+
+export const AccountsOrigin = 'https://accounts.new-eden.io';
+
 export const EveScopes = [
     'esi-ui.write_waypoint.v1',
     'esi-skills.read_skills.v1',

@@ -3,9 +3,9 @@ import * as moment from 'moment';
 import * as jwt from 'jsonwebtoken';
 import { database, auth } from 'firebase-admin';
 import { Request } from 'hapi';
-import { 
-    RegisterRedirect, RegisterClientId, RegisterSecret,
-    LoginRedirect, LoginClientId, LoginSecret, EveScopes
+import { AccountsOrigin, RegisterRedirect, RegisterClientId, 
+    RegisterSecret, LoginRedirect, LoginClientId, LoginSecret, 
+    EveScopes
 } from '../config/config';
 import { login, verify } from '../lib/auth';
 import { Character, Permissions } from '../models/character';
@@ -86,19 +86,19 @@ export default class Authentication {
     }
 
     public verifyHandler = (request: Request, h) => {
-        let authorization: Payload = request.auth.credentials;
+        let authorization = request.auth.credentials as Payload;
         let characterId: string | number = request.params.userId || authorization.mainId;
 
         return this.getProfile(authorization.accountId).then((snapshot: database.DataSnapshot) => {
             if (!snapshot.exists()) {
-                throw unauthorized();
+                throw h.redirect(`${AccountsOrigin}?error_message=${encodeURI('Invalid request, profile doesn\'t exist!')}`);
             }
             else {
                 return this.getCharacter(characterId)
             }
         }).then((snapshot: database.DataSnapshot) => {
             if (!snapshot.exists()) {
-                throw badRequest('Invalid characterId');
+                throw h.redirect(`${AccountsOrigin}?error_message=${encodeURI('Invalid request, character not found!')}`);
             }
             if (snapshot.child('accountId').val() != authorization.accountId) {
                 throw unauthorized();
