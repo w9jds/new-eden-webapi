@@ -6,6 +6,7 @@ import { unauthorized } from 'boom';
 
 import Authentication, {verifyJwt} from './endpoints/auth';
 import Discourse from './endpoints/discourse';
+import Discord from './endpoints/discord';
 import Api from './endpoints/api';
 
 import { DatabaseConfig } from './config/config';
@@ -237,6 +238,23 @@ const createDiscourseRoutes = () => {
         path: '/discourse/callback',
         handler: discourse.callbackHandler
     });
+}
+
+const createDiscordRoutes = () => {
+    let discord = new Discord();
+
+    server.route({
+        method: 'GET',
+        path: '/discord/login',
+        handler: discord.loginHandler
+    });
+
+    server.route({
+        method: 'GET',
+        path: '/discord/callback',
+        handler: discord.callbackHandler
+    });
+
 }
 
 init().then(server => {

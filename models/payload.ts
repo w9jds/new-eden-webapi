@@ -5,6 +5,7 @@ export interface Payload {
     sub: string;
     aud: string;
     mainId: string | number;
+    scopes?: string[];
     accountId?: string | number;
 }
 

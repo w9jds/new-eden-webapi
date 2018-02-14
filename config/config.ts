@@ -1,7 +1,7 @@
 
 export const UserAgent = 'Account Management - Chingy Chonga/Jeremy Shore - w9jds@live.com';
 
-export const AccountsOrigin = 'https://accounts.new-eden.io';
+export const AccountsOrigin = process.env.ACCOUNTS_ORIGIN;
 
 export const EveScopes = [
     'esi-ui.write_waypoint.v1',
@@ -39,3 +39,6 @@ export const LoginRedirect = process.env.LOGIN_REDIRECT_URI
 export const ForumClientId = process.env.FORUM_CLIENT_ID;
 export const ForumSecret = process.env.FORUM_SECRET;
 export const ForumRedirect = process.env.FORUM_REDIRECT_URI;
+
+export const DiscordClientId = process.env.DISCORD_CLIENT_ID;
+export const DiscordRedirect = process.env.DISCORD_REDIRECT_URI;

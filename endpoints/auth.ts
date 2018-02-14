@@ -2,7 +2,7 @@ import {badRequest, unauthorized} from 'boom';
 import * as moment from 'moment';
 import * as jwt from 'jsonwebtoken';
 import { database, auth } from 'firebase-admin';
-import { Request } from 'hapi';
+import { Request, ResponseToolkit } from 'hapi';
 import { AccountsOrigin, RegisterRedirect, RegisterClientId, 
     RegisterSecret, LoginRedirect, LoginClientId, LoginSecret, 
     EveScopes
@@ -27,22 +27,64 @@ export const verifyJwt = (token): Payload => {
     }
 }
 
+export const validateScopes = (parameter: string): string[] => {
+    let scopes = parameter.split(' ') || [];
+
+    if (scopes.length < 1) {
+        throw badRequest('Invalid Request, scopes parameter is required.');
+    }
+
+    scopes.forEach(scope => {
+        if (EveScopes.indexOf(scope) < 0) {
+            throw badRequest('Invalid scopes parameter');
+        }
+    });
+
+    return scopes;
+}
+
+export const verifyScopes = (scopes: string[], permissions: Permissions, h: ResponseToolkit) => {
+    let current = permissions ? permissions.scope.split(' ') : [];
+
+    if (!current) {
+        return scopes.join(' ');
+    }
+
+    let missing = scopes.filter(scope => current.indexOf(scope) < 0);
+    
+    if (missing.length > 0) {
+        return missing.join(' ');
+    }
+}
+
 export default class Authentication {
     constructor(private firebase: database.Database, private auth: auth.Auth) {}
 
-    public loginHandler = (request: Request, h) => {
+    public loginHandler = (request: Request, h: ResponseToolkit) => {
         if (!request.query.redirectTo) {
-            return badRequest('Invalid Request, redirectTo parameter is required.');
+            throw badRequest('Invalid Request, redirectTo parameter is required.');
         }
 
-        let redirect = jwt.sign({ 
-            aud: request.info.host,
-            redirect: decodeURI(request.query.redirectTo) 
-        }, process.env.JWT_SECRET_KEY);
+        let redirect = jwt.sign({
+            aud: request.info.host, 
+            scopes: validateScopes(request.query.scopes), 
+            redirect: decodeURI(request.query.redirectTo)}, 
+            process.env.JWT_SECRET_KEY);
         return h.redirect(`https://login.eveonline.com/oauth/authorize?response_type=code&redirect_uri=${LoginRedirect}&client_id=${LoginClientId}&state=${redirect}`);
     }
     
-    public registerHandler = (request: Request, h) => {
+    private buildRegisterScopes = (request: Request): string => {
+        if (request.query.scopes) {
+            return request.query.scopes;
+        }
+
+        return encodeURIComponent([
+            'esi-characters.read_titles.v1',
+            'esi-characters.read_corporation_roles.v1'
+        ].join(' '));
+    }
+
+    public registerHandler = (request: Request, h: ResponseToolkit) => {
         if (!request.query.redirectTo) {
             throw badRequest('Invalid Request, redirectTo parameter is required.');
         }
@@ -52,10 +94,10 @@ export default class Authentication {
             aud: request.info.host,
             redirect: decodeURI(request.query.redirectTo) 
         }, process.env.JWT_SECRET_KEY);
-        return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}&client_id=${RegisterClientId}&scope=${EveScopes.join('%20')}&state=${state}`);
+        return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}&client_id=${RegisterClientId}&scope=${this.buildRegisterScopes(request)}&state=${state}`);
     }
 
-    public addCharacterHandler = (request: Request, h) => {
+    public addCharacterHandler = (request: Request, h: ResponseToolkit) => {
         if (!request.query.redirectTo) {
             throw badRequest('Invalid Request, redirectTo parameter is required.');
         }
@@ -85,32 +127,37 @@ export default class Authentication {
         });
     }
 
-    public verifyHandler = (request: Request, h) => {
+    public verifyHandler = (request: Request, h: ResponseToolkit) => {
         let authorization = request.auth.credentials as Payload;
         let characterId: string | number = request.params.userId || authorization.mainId;
 
         return this.getProfile(authorization.accountId).then((snapshot: database.DataSnapshot) => {
             if (!snapshot.exists()) {
-                throw h.redirect(`${AccountsOrigin}?error_message=${encodeURI('Invalid request, profile doesn\'t exist!')}`);
+                throw badRequest(`Invalid request, profile doesn't exist!`);
             }
-            else {
-                return this.getCharacter(characterId)
-            }
+
+            return this.getCharacter(characterId);
         }).then((snapshot: database.DataSnapshot) => {
             if (!snapshot.exists()) {
-                throw h.redirect(`${AccountsOrigin}?error_message=${encodeURI('Invalid request, character not found!')}`);
+                throw badRequest('Invalid request, character not found!');
             }
+            
             if (snapshot.child('accountId').val() != authorization.accountId) {
-                throw unauthorized();
+                throw badRequest('Invalid request, character not part of provided profile!');
+            }
+
+            let missingScopes = verifyScopes(authorization.scopes, snapshot.child('sso').val() as Permissions, h);
+            if (missingScopes) {
+                throw badRequest(`Invalid request, character missing ${missingScopes} scopes`);
             }
 
             return this.auth.createCustomToken(characterId.toString());
         }).then((token: string) => {
             return h.response({ characterId, token });
-        });
+        });;
     }
 
-    public loginCallbackHandler = (request: Request, h) => {
+    public loginCallbackHandler = (request: Request, h: ResponseToolkit) => {
         let tokens, verification;
         let state: State = verifyJwt(request.query.state) as State;
 
@@ -122,18 +169,22 @@ export default class Authentication {
             return this.getCharacter(verification.CharacterID)
         }).then((snapshot: database.DataSnapshot) => {
             if (!snapshot.exists()) {
-                throw badRequest('There are no profiles that are associated with this character, please register for a profile.');
+                return h.redirect(`${AccountsOrigin}?type=character_not_found`);
             }
-            else {
-                return this.getProfile(snapshot.child('accountId').val());
+
+            let missingScopes = verifyScopes(state.scopes, snapshot.child('sso').val() as Permissions, h);
+            if (missingScopes) {
+                return h.redirect(`${AccountsOrigin}?type=missing_scopes&scopes=${encodeURIComponent(missingScopes)}`);;
             }
-        }).then((snapshot: database.DataSnapshot) => {
-            let token = this.buildProfileToken(state.aud, snapshot.key, snapshot.child('mainId').val());
-            return h.redirect(`${state.redirect}#${token}`)  
+
+            return this.getProfile(snapshot.child('accountId').val()).then((snapshot: database.DataSnapshot) => {
+                let token = this.buildProfileToken(state.aud, state.scopes, snapshot.key, snapshot.child('mainId').val());
+                return h.redirect(`${state.redirect}#${token}`)  
+            });
         });
     }
 
-    public registerCallbackHandler = (request: Request, h) => {
+    public registerCallbackHandler = (request: Request, h: ResponseToolkit) => {
         let tokens, verification;
         let state: State = verifyJwt(request.query.state) as State;
 
@@ -143,28 +194,25 @@ export default class Authentication {
         }).then(response => {
             verification = response;
             return this.getCharacter(verification.CharacterID)
-        }).then((snapshot: database.DataSnapshot): Promise<any> => {
+        }).then((snapshot: database.DataSnapshot) => {
             if (!snapshot.exists()) {
                 if (state.type == types.register) {
-                    return this.createNewProfile(state, request, tokens, verification);
+                    return this.createNewProfile(state, request, tokens, verification).then(token => {
+                        return h.redirect(`${state.redirect}/#${token}`);
+                    });
                 }
                 if (state.type == types.addCharacter) {
                     return Promise.all([
                         this.createUser(verification),
                         this.firebase.ref(`characters/${verification.CharacterID}`)
                             .set(this.createCharacter(tokens, verification, state.accountId))
-                    ]);
+                    ]).then(() => {
+                        return h.redirect(state.redirect);  
+                    });
                 }
             }
             else {
-                throw badRequest('Character already associated to a profile');
-            }
-        }).then(token => {
-            if (state.type == types.register) {
-                return h.redirect(`${state.redirect}/#${token}`);
-            }
-            else {
-                return h.redirect(state.redirect);
+                return h.redirect(`${AccountsOrigin}?type=character_already_exists`);
             }
         });
     }
@@ -191,7 +239,7 @@ export default class Authentication {
                 })
             ]);
         }).then(() => {
-            return this.buildProfileToken(state.aud, accountId, verification.CharacterID);
+            return this.buildProfileToken(state.aud, state.scopes, accountId, verification.CharacterID);
         });
     }
 
@@ -219,12 +267,12 @@ export default class Authentication {
         };
     }
 
-    private buildProfileToken = (host, accountId: string | number, mainId): string => {
+    private buildProfileToken = (host, scopes: string[], accountId: string | number, mainId): string => {
         return jwt.sign({
             iss: 'https://api.chingy.tools',
             sub: 'profile',
             aud: host,
-            accountId, mainId,
+            accountId, mainId, scopes
         }, process.env.JWT_SECRET_KEY);
     }
 }
