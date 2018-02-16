@@ -3,6 +3,7 @@ import * as CryptoJs from 'crypto-js';
 import * as jwt from 'jsonwebtoken';
 import * as queryString from 'query-string';
 
+import { ResponseObject } from 'hapi';
 import { internal, unauthorized } from 'boom';
 import { login, verify } from '../lib/auth';
 import { getCharacter } from '../lib/esi';
@@ -24,8 +25,9 @@ export default class Discourse {
 
     constructor() { }
 
-    public loginHandler = (request, h): void => {
+    public loginHandler = (request, h) => {
         let hash = CryptoJs.HmacSHA256(request.query.sso, ForumSecret);
+        
         let state = jwt.sign({
             sso: queryString.parse(atob(request.query.sso)),
             sig: request.query.sig
@@ -34,41 +36,32 @@ export default class Discourse {
         if (hash.toString() == request.query.sig) {
             return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${ForumRedirect}&client_id=${ForumClientId}&state=${state}`);
         }
-        else {
-            throw unauthorized();
-        }
+
+        throw unauthorized();
     }
 
-    public callbackHandler = (request, h) => {
-        let characterId: string;
+    public callbackHandler = async (request, h): Promise<ResponseObject> => {
+        let tokens = await login(request.query.code, ForumClientId, ForumSecret);
+        let verification = await verify(tokens.token_type, tokens.access_token);
+        let character = await getCharacter(verification.CharacterID);
+        let state = verifyJwt(request.query.state);
+        
+        let query = {
+            email: `${verification.CharacterID}@gmail.com`,
+            nonce: state['sso'].nonce,
+            external_id: verification.CharacterID,
+            username: character.name.replace(' ', '_'),
+            name: character.name,
+            avatar_url: `https://imageserver.eveonline.com/Character/${verification.CharacterID}_256.jpg`
+        };
 
-        return login(request.query.code, ForumClientId, ForumSecret).then(response => {
-            return verify(response.token_type, response.access_token);
-        }).then(response => {
-            characterId = response.CharacterID;
-            return getCharacter(characterId)
-        }).then(character => {
-            let state = verifyJwt(request.query.state);
-            let query = {
-                email: `${characterId}@gmail.com`,
-                nonce: state['sso'].nonce,
-                external_id: characterId,
-                username: character.name.replace(' ', '_'),
-                name: character.name,
-                avatar_url: `https://imageserver.eveonline.com/Character/${characterId}_256.jpg`
-            };
-    
-            if (character.alliance_id == 99006117) {
-                let payload = btoa(queryString.stringify(query));
-                let sig = CryptoJs.HmacSHA256(payload, ForumSecret).toString();
-    
-                return h.redirect(`${state['sso'].return_sso_url}?sso=${payload}&sig=${sig}`);
-            }
-            else {
-                throw unauthorized();
-            }
-        }).catch(error => {
-            throw internal(error);
-        })
+        if (character.alliance_id == 99006117) {
+            let payload = btoa(queryString.stringify(query));
+            let sig = CryptoJs.HmacSHA256(payload, ForumSecret).toString();
+
+            return h.redirect(`${state['sso'].return_sso_url}?sso=${payload}&sig=${sig}`);
+        }
+        
+        throw unauthorized();
     }
 }

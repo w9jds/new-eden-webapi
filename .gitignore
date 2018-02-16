@@ -45,3 +45,6 @@ jspm_packages
 /tls.crt
 /tls.key
 /certificate
+/config/neweden-admin.json
+/config/partymapper-admin.json
+/scripts/migration.js

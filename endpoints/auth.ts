@@ -2,7 +2,7 @@ import {badRequest, unauthorized} from 'boom';
 import * as moment from 'moment';
 import * as jwt from 'jsonwebtoken';
 import { database, auth } from 'firebase-admin';
-import { Request, ResponseToolkit } from 'hapi';
+import { Request, ResponseToolkit, ResponseObject } from 'hapi';
 import { AccountsOrigin, RegisterRedirect, RegisterClientId, 
     RegisterSecret, LoginRedirect, LoginClientId, LoginSecret, 
     EveScopes
@@ -78,169 +78,136 @@ export default class Authentication {
             return request.query.scopes;
         }
 
-        return encodeURIComponent([
-            'esi-characters.read_titles.v1',
-            'esi-characters.read_corporation_roles.v1'
-        ].join(' '));
+        return encodeURIComponent([ 
+            'esi-characters.read_titles.v1', 
+            'esi-characters.read_corporation_roles.v1' ].join(' '));
     }
 
     public registerHandler = (request: Request, h: ResponseToolkit) => {
-        if (!request.query.redirectTo) {
-            throw badRequest('Invalid Request, redirectTo parameter is required.');
-        }
+        if (!request.query.redirectTo) throw badRequest('Invalid Request, redirectTo parameter is required.');
 
         let state = jwt.sign({ 
             type: types.register, 
             aud: request.info.host,
             redirect: decodeURI(request.query.redirectTo) 
         }, process.env.JWT_SECRET_KEY);
+        
         return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}&client_id=${RegisterClientId}&scope=${this.buildRegisterScopes(request)}&state=${state}`);
     }
 
-    public addCharacterHandler = (request: Request, h: ResponseToolkit) => {
-        if (!request.query.redirectTo) {
-            throw badRequest('Invalid Request, redirectTo parameter is required.');
-        }
-        if (!request.query.token) {
-            throw badRequest('Invalid Request, token parameter is required.');
-        }
+    public addCharacterHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
+        if (!request.query.redirectTo) throw badRequest('Invalid Request, redirectTo parameter is required.');
+        if (!request.query.token) throw badRequest('Invalid Request, token parameter is required.');
 
         let authorization: Payload = verifyJwt(request.query.token);
-        
-        if (authorization.aud != request.info.host) {
-            throw unauthorized('invalid_client: Token is for another client');
-        }
+        if (authorization.aud != request.info.host) throw unauthorized('invalid_client: Token is for another client');
 
-        return this.getProfile(authorization.accountId).then((snapshot: database.DataSnapshot) => {
-            if (!snapshot.exists()) {
-                throw unauthorized();
-            }
-            else {
-                let state = jwt.sign({
-                    type: types.addCharacter,
-                    aud: request.info.host,
-                    accountId: authorization.accountId, 
-                    redirect: request.query.redirectTo
-                }, process.env.JWT_SECRET_KEY);
-                return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}&client_id=${RegisterClientId}&scope=${EveScopes.join('%20')}&state=${state}`);
-            }
-        });
+        let snapshot: database.DataSnapshot = await this.getProfile(authorization.accountId);
+        if (!snapshot.exists()) throw unauthorized();
+
+        let state = jwt.sign({
+            type: types.addCharacter,
+            aud: request.info.host,
+            accountId: authorization.accountId, 
+            redirect: request.query.redirectTo
+        }, process.env.JWT_SECRET_KEY);
+        
+        return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}&client_id=${RegisterClientId}&scope=${EveScopes.join('%20')}&state=${state}`);
     }
 
-    public verifyHandler = (request: Request, h: ResponseToolkit) => {
+    public verifyHandler = async (request: Request, h: ResponseToolkit) => {
         let authorization = request.auth.credentials as Payload;
         let characterId: string | number = request.params.userId || authorization.mainId;
 
-        return this.getProfile(authorization.accountId).then((snapshot: database.DataSnapshot) => {
-            if (!snapshot.exists()) {
-                throw badRequest(`Invalid request, profile doesn't exist!`);
-            }
+        let profile: database.DataSnapshot = await this.getProfile(authorization.accountId);
+        if (!profile.exists()) throw badRequest(`Invalid request, profile doesn't exist!`);
 
-            return this.getCharacter(characterId);
-        }).then((snapshot: database.DataSnapshot) => {
-            if (!snapshot.exists()) {
-                throw badRequest('Invalid request, character not found!');
-            }
-            
-            if (snapshot.child('accountId').val() != authorization.accountId) {
-                throw badRequest('Invalid request, character not part of provided profile!');
-            }
+        let character: database.DataSnapshot = await this.getCharacter(characterId);
+        if (!character.exists()) {
+            throw badRequest('Invalid request, character not found!');
+        }
 
-            let missingScopes = verifyScopes(authorization.scopes, snapshot.child('sso').val() as Permissions, h);
-            if (missingScopes) {
-                throw badRequest(`Invalid request, character missing ${missingScopes} scopes`);
-            }
+        if (character.child('accountId').val() != authorization.accountId) {
+            throw badRequest('Invalid request, character not part of provided profile!');
+        }
 
-            return this.auth.createCustomToken(characterId.toString());
-        }).then((token: string) => {
-            return h.response({ characterId, token });
-        });;
+        let missingScopes = verifyScopes(authorization.scopes, character.child('sso').val() as Permissions, h);
+        if (missingScopes) throw badRequest(`Invalid request, character missing ${missingScopes} scopes`);
+        
+        let token: string = await this.auth.createCustomToken(characterId.toString());
+        return h.response({ characterId, token });
     }
 
-    public loginCallbackHandler = (request: Request, h: ResponseToolkit) => {
-        let tokens, verification;
+    public loginCallbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
         let state: State = verifyJwt(request.query.state) as State;
 
-        return login(request.query.code, LoginClientId, LoginSecret).then(response => {
-            tokens = response;
-            return verify(response.token_type, response.access_token);
-        }).then(response => {
-            verification = response;
-            return this.getCharacter(verification.CharacterID)
-        }).then((snapshot: database.DataSnapshot) => {
-            if (!snapshot.exists()) {
-                return h.redirect(`${AccountsOrigin}?type=character_not_found`);
-            }
+        
+        let tokens = await login(request.query.code, LoginClientId, LoginSecret);
+        let verification = await verify(tokens.token_type, tokens.access_token);
+        let character: database.DataSnapshot = await this.getCharacter(verification.CharacterID);
 
-            let missingScopes = verifyScopes(state.scopes, snapshot.child('sso').val() as Permissions, h);
-            if (missingScopes) {
-                return h.redirect(`${AccountsOrigin}?type=missing_scopes&scopes=${encodeURIComponent(missingScopes)}`);;
-            }
+        if (!character.exists()) {
+            return h.redirect(`${AccountsOrigin}?type=character_not_found`);
+        }
 
-            return this.getProfile(snapshot.child('accountId').val()).then((snapshot: database.DataSnapshot) => {
-                let token = this.buildProfileToken(state.aud, state.scopes, snapshot.key, snapshot.child('mainId').val());
-                return h.redirect(`${state.redirect}#${token}`)  
-            });
-        });
+        let missingScopes = verifyScopes(state.scopes, character.child('sso').val() as Permissions, h);
+        if (missingScopes) {
+            return h.redirect(`${AccountsOrigin}?type=missing_scopes&scopes=${encodeURIComponent(missingScopes)}`);
+        }
+
+        let profile: database.DataSnapshot = await this.getProfile(character.child('accountId').val());
+        let token = this.buildProfileToken(state.aud, state.scopes, profile.key, profile.child('mainId').val());
+
+        return h.redirect(`${state.redirect}#${token}`);
     }
 
-    public registerCallbackHandler = (request: Request, h: ResponseToolkit) => {
-        let tokens, verification;
+    public registerCallbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
         let state: State = verifyJwt(request.query.state) as State;
+        let authorization = await login(request.query.code, RegisterClientId, RegisterSecret);
+        let verification = await verify(authorization.token_type, authorization.access_token);
+        let character: database.DataSnapshot = await this.getCharacter(verification.CharacterID);
+        
+        if (!character.exists()) {
+            if (state.type == types.register) {
+                let token = await this.createNewProfile(state, request, authorization, verification);
+                return h.redirect(`${state.redirect}/#${token}`);
+            }
+            if (state.type == types.addCharacter) {
+                await Promise.all([
+                    this.createUser(verification),
+                    this.firebase.ref(`characters/${verification.CharacterID}`)
+                        .set(this.createCharacter(authorization, verification, state.accountId))
+                ]);
+                return h.redirect(state.redirect);
+            }
+        }
 
-        return login(request.query.code, RegisterClientId, RegisterSecret).then(response => {
-            tokens = response;
-            return verify(response.token_type, response.access_token);
-        }).then(response => {
-            verification = response;
-            return this.getCharacter(verification.CharacterID)
-        }).then((snapshot: database.DataSnapshot) => {
-            if (!snapshot.exists()) {
-                if (state.type == types.register) {
-                    return this.createNewProfile(state, request, tokens, verification).then(token => {
-                        return h.redirect(`${state.redirect}/#${token}`);
-                    });
-                }
-                if (state.type == types.addCharacter) {
-                    return Promise.all([
-                        this.createUser(verification),
-                        this.firebase.ref(`characters/${verification.CharacterID}`)
-                            .set(this.createCharacter(tokens, verification, state.accountId))
-                    ]).then(() => {
-                        return h.redirect(state.redirect);  
-                    });
-                }
-            }
-            else {
-                return h.redirect(`${AccountsOrigin}?type=character_already_exists`);
-            }
-        });
+        return h.redirect(`${AccountsOrigin}?type=character_already_exists`);
     }
 
-    private getCharacter = (characterId: number | string): Promise<database.DataSnapshot> => {
+    private getCharacter = (characterId: number | string): Promise<any> => {
         return this.firebase.ref(`characters/${characterId}`).once('value');
     }
 
-    private getProfile = (profileId: number | string): Promise<database.DataSnapshot> => {
+    private getProfile = (profileId: number | string): Promise<any> => {
         return this.firebase.ref(`users/${profileId}`).once('value');
     }
 
-    private createNewProfile = (state, request, tokens, verification): Promise<string> => {
+    private createNewProfile = async (state, request, tokens, verification): Promise<string> => {
         let accountId: string = FirebaseUtils.generateKey();
+        let record: auth.UserRecord = await this.createUser(verification);
 
-        return this.createUser(verification).then((record: auth.UserRecord) => {
-            return Promise.all([
-                this.firebase.ref(`characters/${verification.CharacterID}`).set(this.createCharacter(tokens, verification, accountId)),
-                this.firebase.ref(`users/${accountId}`).set({
-                    id: accountId,
-                    mainId: verification.CharacterID,
-                    name: verification.CharacterName,
-                    errors: false
-                })
-            ]);
-        }).then(() => {
-            return this.buildProfileToken(state.aud, state.scopes, accountId, verification.CharacterID);
-        });
+        await Promise.all([
+            this.firebase.ref(`characters/${verification.CharacterID}`).set(this.createCharacter(tokens, verification, accountId)),
+            this.firebase.ref(`users/${accountId}`).set({
+                id: accountId,
+                mainId: verification.CharacterID,
+                name: verification.CharacterName,
+                errors: false
+            })
+        ]);
+
+        return this.buildProfileToken(state.aud, state.scopes, accountId, verification.CharacterID);
     }
 
     private createUser = (verification): Promise<auth.UserRecord> => {

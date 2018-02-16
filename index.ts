@@ -1,6 +1,6 @@
 import * as admin from 'firebase-admin';
 import * as jwt from 'jsonwebtoken';
-import * as cert from './config/firebase-admin.json';
+import * as cert from './config/neweden-admin.json';
 import { Server, Request, ResponseToolkit, ServerAuthSchemeOptions } from 'hapi';
 import { unauthorized } from 'boom';
 

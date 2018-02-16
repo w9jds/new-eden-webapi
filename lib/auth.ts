@@ -37,7 +37,7 @@ export const verify = (type: string, token: string): Promise<any> => {
     });
 }
 
-export const refresh = (refreshToken: string, clientId: string, secret: string): Promise<any> => {
+export async function refresh(refreshToken: string, clientId: string, secret: string): Promise<any> {
     return fetch('https://login.eveonline.com/oauth/token', {
         method: 'POST',
         headers: {
@@ -46,5 +46,20 @@ export const refresh = (refreshToken: string, clientId: string, secret: string):
             'Host': 'login.eveonline.com'
         },
         body: `grant_type=refresh_token&refresh_token=${refreshToken}`
+    });
+}
+
+export async function revoke(accessToken: string, clientId: string, secret: string): Promise<any> {
+    return fetch('https://login.eveonline.com/oauth/revoke', {
+        method: 'POST',
+        body: JSON.stringify({
+            'token_type_hint': 'access_token',
+            'token': accessToken
+        }),
+        headers: {
+            'Authorization': `Basic ${new Buffer(clientId + ':' + secret).toString('base64')}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Host': 'login.eveonline.com'
+        }
     });
 }
