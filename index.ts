@@ -119,6 +119,7 @@ async function init(): Promise<Server> {
 
     createApiRoutes();
     createAuthRoutes();
+    createDiscordRoutes();
     createDiscourseRoutes();
     
     await server.start();
@@ -241,7 +242,7 @@ const createDiscourseRoutes = () => {
 }
 
 const createDiscordRoutes = () => {
-    let discord = new Discord();
+    let discord = new Discord(firebase.database());
 
     server.route({
         method: 'GET',

@@ -41,4 +41,5 @@ export const ForumSecret = process.env.FORUM_SECRET;
 export const ForumRedirect = process.env.FORUM_REDIRECT_URI;
 
 export const DiscordClientId = process.env.DISCORD_CLIENT_ID;
+export const DiscordSecret = process.env.DISCORD_SECRET;
 export const DiscordRedirect = process.env.DISCORD_REDIRECT_URI;

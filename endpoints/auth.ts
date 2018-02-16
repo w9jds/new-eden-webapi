@@ -87,8 +87,9 @@ export default class Authentication {
         if (!request.query.redirectTo) throw badRequest('Invalid Request, redirectTo parameter is required.');
 
         let state = jwt.sign({ 
-            type: types.register, 
+            type: types.register,
             aud: request.info.host,
+            revoke: request.query.revoke ? true : false,
             redirect: decodeURI(request.query.redirectTo) 
         }, process.env.JWT_SECRET_KEY);
         
