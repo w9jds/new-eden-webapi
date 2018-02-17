@@ -23,8 +23,11 @@ export default class Discord {
     }
 
     public callbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
-        let state: Payload = verifyJwt(request.query.state);
+        if (request.query.error) {
+            return h.redirect(AccountsOrigin);
+        }
 
+        let state: Payload = verifyJwt(request.query.state);
         let tokens: Tokens = await validate(request.query.code);
         let user: User = await getCurrentUser(tokens.access_token);
 

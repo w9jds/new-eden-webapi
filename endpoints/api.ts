@@ -15,7 +15,7 @@ export default class Api {
     
         let response = await setWaypoint(credentials, body.location, body.setType);
         if (response.status === 204) {
-            return h.response({ success: true });
+            return h.response().code(204);
         }
 
         throw badRequest();

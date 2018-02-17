@@ -93,7 +93,7 @@ async function init(): Promise<Server> {
                     .header('Access-Control-Allow-Origin', request.headers.origin || request.headers.Origin)
                     .header('Access-Control-Allow-Credentials', 'true')
                     .header('Access-Control-Allow-Methods', 'GET, POST')
-                    .header('Access-Control-Allow-Headers', 'authorization');
+                    .header('Access-Control-Allow-Headers', 'authorization, content-type');
             }
         }
     });
@@ -141,7 +141,10 @@ const createApiRoutes = () => {
             auth: 'firebase-auth',
             cors: {
                 origin: ['*'],
-                additionalHeaders: ['authorization']
+                additionalHeaders: [
+                    'authorization', 
+                    'content-type'
+                ]
             }
         }
     });
@@ -154,7 +157,10 @@ const createApiRoutes = () => {
             auth: false,
             cors: {
                 origin: ['*'],
-                additionalHeaders: ['authorization']
+                additionalHeaders: [
+                    'authorization', 
+                    'content-type'
+                ]
             }
         }
     });

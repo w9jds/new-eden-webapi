@@ -5,6 +5,7 @@
     "build": "webpack --verbose --colors"
   },
   "dependencies": {
+    "@google-cloud/storage": "^1.6.0",
     "babel-polyfill": "^6.26.0",
     "firebase-admin": "^5.8.2",
     "firebase-functions": "^0.8.1",

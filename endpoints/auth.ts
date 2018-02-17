@@ -28,11 +28,11 @@ export const verifyJwt = (token): Payload => {
 }
 
 export const validateScopes = (parameter: string): string[] => {
-    let scopes = parameter.split(' ') || [];
-
-    if (scopes.length < 1) {
+    if (!parameter) {
         throw badRequest('Invalid Request, scopes parameter is required.');
     }
+
+    let scopes = parameter.split(' ') || [];
 
     scopes.forEach(scope => {
         if (EveScopes.indexOf(scope) < 0) {
@@ -113,7 +113,7 @@ export default class Authentication {
             redirect: request.query.redirectTo
         }, process.env.JWT_SECRET_KEY);
         
-        return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}&client_id=${RegisterClientId}&scope=${EveScopes.join('%20')}&state=${state}`);
+        return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}&client_id=${RegisterClientId}&scope=${this.buildRegisterScopes(request)}&state=${state}`);
     }
 
     public verifyHandler = async (request: Request, h: ResponseToolkit) => {
@@ -212,11 +212,15 @@ export default class Authentication {
     }
 
     private createUser = (verification): Promise<auth.UserRecord> => {
-        return this.auth.createUser({
+        let user = {
             uid: verification.CharacterID.toString(),
             displayName: verification.CharacterName,
             photoURL: `https://imageserver.eveonline.com/Character/${verification.CharacterID}_512.jpg`,
             disabled: false
+        };
+
+        return this.auth.createUser(user).catch(error => {
+            return this.auth.updateUser(user.uid, user);
         });
     }
 
