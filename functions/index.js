@@ -100,9 +100,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const functions = __webpack_require__(0);
 const firebase_admin_1 = __webpack_require__(5);
 const character_1 = __webpack_require__(6);
-let firebase = firebase_admin_1.initializeApp(functions.config().firebase).database();
-let characterHandlers = new character_1.default(firebase);
-exports.onCharacterCreate = characterHandlers.onNewCharacter;
+const locations_1 = __webpack_require__(9);
+const storage_1 = __webpack_require__(10);
+let firebase = firebase_admin_1.initializeApp(functions.config().firebase);
+let character = new character_1.default(firebase.database());
+let locations = new locations_1.default(firebase.database());
+let storage = new storage_1.default(firebase.storage());
+exports.onAllianceUpdate = locations.onAllianceUpdate;
+exports.onCorpUpdate = locations.onCorpUpdate;
+exports.onCharacterCreate = character.onNewCharacter;
 
 
 /***/ }),
@@ -200,11 +206,17 @@ exports.getTitles = (id, accessToken) => {
         headers: Object.assign({ 'Authorization': `Bearer ${accessToken}` }, headers)
     }).then(exports.verifyResponse);
 };
-exports.getCorporation = (id) => {
-    return fetch(`https://esi.tech.ccp.is/v4/corporations/${id}/`, {
+exports.getRoute = (origin, destination, flag) => {
+    return fetch(`https://esi.tech.ccp.is/latest/route/${origin}/${destination}/?flag=${flag}`, {
         method: 'GET',
         headers
     }).then(exports.verifyResponse);
+};
+exports.setWaypoint = (character, location, setType) => {
+    return fetch(`https://esi.tech.ccp.is/latest/ui/autopilot/waypoint/?add_to_beginning=${setType.isFirst}&clear_other_waypoints=${setType.clear}&destination_id=${location.id}`, {
+        method: 'POST',
+        headers: Object.assign({ 'Authorization': `Bearer ${character.sso.accessToken}` }, headers)
+    });
 };
 
 
@@ -216,6 +228,7 @@ exports.getCorporation = (id) => {
 
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UserAgent = 'Account Management - Chingy Chonga/Jeremy Shore - w9jds@live.com';
+exports.AccountsOrigin = process.env.ACCOUNTS_ORIGIN;
 exports.EveScopes = [
     'esi-ui.write_waypoint.v1',
     'esi-skills.read_skills.v1',
@@ -245,6 +258,55 @@ exports.RegisterRedirect = process.env.REGISTER_REDIRECT_URI;
 exports.LoginClientId = process.env.LOGIN_CLIENT_ID;
 exports.LoginSecret = process.env.LOGIN_SECRET;
 exports.LoginRedirect = process.env.LOGIN_REDIRECT_URI;
+exports.ForumClientId = process.env.FORUM_CLIENT_ID;
+exports.ForumSecret = process.env.FORUM_SECRET;
+exports.ForumRedirect = process.env.FORUM_REDIRECT_URI;
+exports.DiscordClientId = process.env.DISCORD_CLIENT_ID;
+exports.DiscordSecret = process.env.DISCORD_SECRET;
+exports.DiscordRedirect = process.env.DISCORD_REDIRECT_URI;
+
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const firebase_functions_1 = __webpack_require__(0);
+class LocationHandlers {
+    constructor(firebase) {
+        this.firebase = firebase;
+        this.onAllianceUpdate = firebase_functions_1.database.ref('characters/{userId}/allianceId').onUpdate((event) => {
+            this.removeOldLocation(event.data.previous.val(), event.params.userId);
+        });
+        this.onCorpUpdate = firebase_functions_1.database.ref('characters/{userId}/corpId').onUpdate((event) => {
+            this.removeOldLocation(event.data.previous.val(), event.params.userId);
+        });
+        this.removeOldLocation = (previous, userId) => {
+            return this.firebase.ref(`locations/${previous}/${userId}`).transaction(current => null);
+        };
+    }
+}
+exports.default = LocationHandlers;
+
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+const functions = __webpack_require__(0);
+class StorageHandlers {
+    constructor(storage) {
+        this.storage = storage;
+        this.saveLocation = functions.storage.bucket('backgrounds').object().onChange((event) => {
+        });
+    }
+}
+exports.default = StorageHandlers;
 
 
 /***/ })

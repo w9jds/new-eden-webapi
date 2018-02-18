@@ -7,7 +7,8 @@ export default class StorageHandlers {
     constructor(private storage: admin.storage.Storage) { }
 
     public saveLocation = functions.storage.bucket('backgrounds').object().onChange((event) => {
-          
+        //   const object = event.data;
+        //   const bucket = 
     });
 
 

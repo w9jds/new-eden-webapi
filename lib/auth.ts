@@ -50,12 +50,8 @@ export async function refresh(refreshToken: string, clientId: string, secret: st
 }
 
 export async function revoke(accessToken: string, clientId: string, secret: string): Promise<any> {
-    return fetch('https://login.eveonline.com/oauth/revoke', {
+    let response = await fetch(`https://login.eveonline.com/oauth/revoke?token_type_hint=access_token&token=${accessToken}`, {
         method: 'POST',
-        body: JSON.stringify({
-            'token_type_hint': 'access_token',
-            'token': accessToken
-        }),
         headers: {
             'Authorization': `Basic ${new Buffer(clientId + ':' + secret).toString('base64')}`,
             'Content-Type': 'application/x-www-form-urlencoded',

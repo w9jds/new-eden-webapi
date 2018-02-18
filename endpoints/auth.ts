@@ -12,6 +12,7 @@ import { Character, Permissions } from '../models/character';
 import { Profile } from '../models/profile';
 import FirebaseUtils from '../utils/firebase';
 import { Payload, State } from '../models/payload';
+import { revoke } from '../lib/auth';
 
 const types = {
     register: 'register',
@@ -32,7 +33,14 @@ export const validateScopes = (parameter: string): string[] => {
         throw badRequest('Invalid Request, scopes parameter is required.');
     }
 
-    let scopes = parameter.split(' ') || [];
+    let scopes = decodeURIComponent(parameter).split(' ') || [];
+
+    if (scopes.indexOf('esi-characters.read_titles.v1') < 0) {
+        scopes.push('esi-characters.read_titles.v1');
+    }
+    if (scopes.indexOf('esi-characters.read_corporation_roles.v1') < 0) {
+        scopes.push('esi-characters.read_corporation_roles.v1');
+    }
 
     scopes.forEach(scope => {
         if (EveScopes.indexOf(scope) < 0) {
@@ -43,18 +51,30 @@ export const validateScopes = (parameter: string): string[] => {
     return scopes;
 }
 
-export const verifyScopes = (scopes: string[], permissions: Permissions, h: ResponseToolkit) => {
+export const verifyScopes = (scopes: string[], permissions: Permissions, h: ResponseToolkit): string[] => {
     let current = permissions ? permissions.scope.split(' ') : [];
 
     if (!current) {
-        return scopes.join(' ');
+        return scopes;
     }
 
     let missing = scopes.filter(scope => current.indexOf(scope) < 0);
     
     if (missing.length > 0) {
-        return missing.join(' ');
+        return missing;
     }
+
+    return null;
+}
+
+const buildRegisterScopes = (request: Request): string => {
+    if (request.query.scopes) {
+        return validateScopes(request.query.scopes).join('%20');
+    }
+
+    return encodeURIComponent([ 
+        'esi-characters.read_titles.v1', 
+        'esi-characters.read_corporation_roles.v1' ].join(' '));
 }
 
 export default class Authentication {
@@ -72,16 +92,6 @@ export default class Authentication {
             process.env.JWT_SECRET_KEY);
         return h.redirect(`https://login.eveonline.com/oauth/authorize?response_type=code&redirect_uri=${LoginRedirect}&client_id=${LoginClientId}&state=${redirect}`);
     }
-    
-    private buildRegisterScopes = (request: Request): string => {
-        if (request.query.scopes) {
-            return request.query.scopes;
-        }
-
-        return encodeURIComponent([ 
-            'esi-characters.read_titles.v1', 
-            'esi-characters.read_corporation_roles.v1' ].join(' '));
-    }
 
     public registerHandler = (request: Request, h: ResponseToolkit) => {
         if (!request.query.redirectTo) throw badRequest('Invalid Request, redirectTo parameter is required.');
@@ -89,11 +99,10 @@ export default class Authentication {
         let state = jwt.sign({ 
             type: types.register,
             aud: request.info.host,
-            revoke: request.query.revoke ? true : false,
-            redirect: decodeURI(request.query.redirectTo) 
+            redirect: decodeURI(request.query.redirectTo)
         }, process.env.JWT_SECRET_KEY);
         
-        return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}&client_id=${RegisterClientId}&scope=${this.buildRegisterScopes(request)}&state=${state}`);
+        return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}&client_id=${RegisterClientId}&scope=${buildRegisterScopes(request)}&state=${state}`);
     }
 
     public addCharacterHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
@@ -113,7 +122,25 @@ export default class Authentication {
             redirect: request.query.redirectTo
         }, process.env.JWT_SECRET_KEY);
         
-        return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}&client_id=${RegisterClientId}&scope=${this.buildRegisterScopes(request)}&state=${state}`);
+        return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}&client_id=${RegisterClientId}&scope=${buildRegisterScopes(request)}&state=${state}`);
+    }
+
+    public modifyScopesHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
+        if (!request.query.redirectTo) throw badRequest('Invalid Request, redirectTo parameter is required.');
+        if (!request.query.state) throw badRequest('Invalid Request, state parameter is required.');
+
+        let state = verifyJwt(request.query.state);
+        let character = await this.getCharacter(state.mainId);
+        if (!character.exists) throw badRequest('Invalid State');
+
+        let permissions = character.child('sso').val() as Permissions;        
+        permissions.scope.split(' ').forEach(scope => {
+            if (state.scopes.indexOf(scope) < 0) {
+                state.scopes.push(scope);
+            }
+        });
+
+        return h.redirect(`/auth/register?redirectTo=${decodeURIComponent(request.query.redirectTo)}&scopes=${state.scopes.join('%20')}`);
     }
 
     public verifyHandler = async (request: Request, h: ResponseToolkit) => {
@@ -133,7 +160,9 @@ export default class Authentication {
         }
 
         let missingScopes = verifyScopes(authorization.scopes, character.child('sso').val() as Permissions, h);
-        if (missingScopes) throw badRequest(`Invalid request, character missing ${missingScopes} scopes`);
+        if (missingScopes) {
+            throw unauthorized();
+        }
         
         let token: string = await this.auth.createCustomToken(characterId.toString());
         return h.response({ characterId, token });
@@ -142,18 +171,24 @@ export default class Authentication {
     public loginCallbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
         let state: State = verifyJwt(request.query.state) as State;
 
-        
         let tokens = await login(request.query.code, LoginClientId, LoginSecret);
         let verification = await verify(tokens.token_type, tokens.access_token);
         let character: database.DataSnapshot = await this.getCharacter(verification.CharacterID);
 
         if (!character.exists()) {
-            return h.redirect(`${AccountsOrigin}?type=character_not_found`);
+            return h.redirect(`${AccountsOrigin}?type=character_not_found&redirectTo=${state.redirect}&scopes=${state.scopes.join('%20')}`);
         }
 
         let missingScopes = verifyScopes(state.scopes, character.child('sso').val() as Permissions, h);
         if (missingScopes) {
-            return h.redirect(`${AccountsOrigin}?type=missing_scopes&scopes=${encodeURIComponent(missingScopes)}`);
+            let token = jwt.sign({ 
+                aud: request.info.host,
+                mainId: character.key,
+                accountId: character.child('accountId').val(),
+                scopes: missingScopes
+            }, process.env.JWT_SECRET_KEY);
+
+            return h.redirect(`${AccountsOrigin}?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}&redirect=${state.redirect}&state=${token}`);
         }
 
         let profile: database.DataSnapshot = await this.getProfile(character.child('accountId').val());
@@ -182,15 +217,36 @@ export default class Authentication {
                 return h.redirect(state.redirect);
             }
         }
+        
+        if (character.hasChild('sso')) {
+            let permissions: Permissions = character.child('sso').val();
 
-        return h.redirect(`${AccountsOrigin}?type=character_already_exists`);
+            if (permissions.scope.split(' ').length < verification.Scopes.split(' ').length) {
+                await revoke(permissions.accessToken, RegisterClientId, RegisterSecret);
+                character.child('sso').ref.set(
+                    this.createCharacter(authorization, verification, state.accountId).sso
+                );
+            }
+            else {
+                await revoke(authorization.access_token, RegisterClientId, RegisterSecret)
+            }
+        }
+        else {
+            character.child('sso').ref.set(
+                this.createCharacter(authorization, verification, state.accountId).sso
+            );  
+        }
+
+        return h.redirect(`${state.redirect}/#` + 
+            this.buildProfileToken(state.redirect, verification.Scopes.split(' '), state.accountId, verification.CharacterID)
+        );
     }
 
-    private getCharacter = (characterId: number | string): Promise<any> => {
+    private getCharacter = (characterId: number | string): Promise<database.DataSnapshot> => {
         return this.firebase.ref(`characters/${characterId}`).once('value');
     }
 
-    private getProfile = (profileId: number | string): Promise<any> => {
+    private getProfile = (profileId: number | string): Promise<database.DataSnapshot> => {
         return this.firebase.ref(`users/${profileId}`).once('value');
     }
 

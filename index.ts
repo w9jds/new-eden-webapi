@@ -192,6 +192,15 @@ const createAuthRoutes = () => {
 
     server.route({
         method: 'GET',
+        path: '/auth/updateScopes',
+        options: {
+            auth: false,
+            handler: authentication.modifyScopesHandler
+        }
+    });
+
+    server.route({
+        method: 'GET',
         path: '/auth/addCharacter',
         options: {
             auth: false,
