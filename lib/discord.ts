@@ -12,8 +12,15 @@ export const validate = async (code: string) => {
     return await response.json() as Tokens;
 }
 
-export const refresh = async () => {
+export const refresh = async (refreshToken: string) => {
+    let response = await fetch(`https://discordapp.com/api/oauth2/token?client_id=${DiscordClientId}&client_secret=${DiscordSecret}&grant_type=refresh_token&refresh_token=${refreshToken}&redirect_uri=${DiscordRedirect}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+        }
+    });
 
+    return await response.json() as Tokens;
 }
 
 export const revoke = async () => {

@@ -19,6 +19,11 @@ const types = {
     addCharacter: 'addCharacter'
 }
 
+const defaultScopes = [ 
+    'esi-characters.read_titles.v1', 
+    'esi-characters.read_corporation_roles.v1' 
+];
+
 export const verifyJwt = (token): Payload => {
     try {
         return jwt.verify(token, process.env.JWT_SECRET_KEY) as Payload;
@@ -35,12 +40,11 @@ export const validateScopes = (parameter: string): string[] => {
 
     let scopes = decodeURIComponent(parameter).split(' ') || [];
 
-    if (scopes.indexOf('esi-characters.read_titles.v1') < 0) {
-        scopes.push('esi-characters.read_titles.v1');
-    }
-    if (scopes.indexOf('esi-characters.read_corporation_roles.v1') < 0) {
-        scopes.push('esi-characters.read_corporation_roles.v1');
-    }
+    defaultScopes.forEach(scope => {
+        if (scopes.indexOf(scope) < 0) {
+            scopes.push(scope);
+        }
+    });
 
     scopes.forEach(scope => {
         if (EveScopes.indexOf(scope) < 0) {
@@ -72,9 +76,7 @@ const buildRegisterScopes = (request: Request): string => {
         return validateScopes(request.query.scopes).join('%20');
     }
 
-    return encodeURIComponent([ 
-        'esi-characters.read_titles.v1', 
-        'esi-characters.read_corporation_roles.v1' ].join(' '));
+    return encodeURIComponent(defaultScopes.join(' '));
 }
 
 export default class Authentication {
@@ -133,12 +135,21 @@ export default class Authentication {
         let character = await this.getCharacter(state.mainId);
         if (!character.exists) throw badRequest('Invalid State');
 
-        let permissions = character.child('sso').val() as Permissions;        
-        permissions.scope.split(' ').forEach(scope => {
-            if (state.scopes.indexOf(scope) < 0) {
-                state.scopes.push(scope);
-            }
-        });
+        if (character.hasChild('sso')) {
+            let permissions = character.child('sso').val() as Permissions;        
+            permissions.scope.split(' ').forEach(scope => {
+                if (state.scopes.indexOf(scope) < 0) {
+                    state.scopes.push(scope);
+                }
+            });
+        }
+        else {
+            defaultScopes.forEach(scope => {
+                if (state.scopes.indexOf(scope) < 0) {
+                    state.scopes.push(scope);
+                }
+            });
+        }
 
         return h.redirect(`/auth/register?redirectTo=${decodeURIComponent(request.query.redirectTo)}&scopes=${state.scopes.join('%20')}`);
     }
@@ -152,16 +163,23 @@ export default class Authentication {
 
         let character: database.DataSnapshot = await this.getCharacter(characterId);
         if (!character.exists()) {
-            throw badRequest('Invalid request, character not found!');
+            return h.response({
+                error: 'invalid_character',
+                redirect: `${AccountsOrigin}?type=character_not_found&redirectTo=${request.info.referrer}&scopes=${authorization.scopes.join('%20')}`
+            }).code(400);
         }
 
         if (character.child('accountId').val() != authorization.accountId) {
-            throw badRequest('Invalid request, character not part of provided profile!');
+            throw unauthorized('Character not part of provided profile!');
         }
 
         let missingScopes = verifyScopes(authorization.scopes, character.child('sso').val() as Permissions, h);
         if (missingScopes) {
-            throw unauthorized();
+            let token = this.buildScopesToken(request.info.referrer, character, missingScopes);
+            return h.response({
+                error: 'invalid_scopes',
+                redirect: `${AccountsOrigin}?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}&redirect=${request.info.referrer}&state=${token}`
+            }).code(401);
         }
         
         let token: string = await this.auth.createCustomToken(characterId.toString());
@@ -181,13 +199,7 @@ export default class Authentication {
 
         let missingScopes = verifyScopes(state.scopes, character.child('sso').val() as Permissions, h);
         if (missingScopes) {
-            let token = jwt.sign({ 
-                aud: request.info.host,
-                mainId: character.key,
-                accountId: character.child('accountId').val(),
-                scopes: missingScopes
-            }, process.env.JWT_SECRET_KEY);
-
+            let token = this.buildScopesToken(request.info.host, character, missingScopes);
             return h.redirect(`${AccountsOrigin}?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}&redirect=${state.redirect}&state=${token}`);
         }
 
@@ -217,29 +229,30 @@ export default class Authentication {
                 return h.redirect(state.redirect);
             }
         }
-        
-        if (character.hasChild('sso')) {
-            let permissions: Permissions = character.child('sso').val();
-
-            if (permissions.scope.split(' ').length < verification.Scopes.split(' ').length) {
-                await revoke(permissions.accessToken, RegisterClientId, RegisterSecret);
-                character.child('sso').ref.set(
-                    this.createCharacter(authorization, verification, state.accountId).sso
-                );
+        else {
+            if (character.hasChild('sso')) {
+                let permissions: Permissions = character.child('sso').val();
+    
+                if (permissions.scope.split(' ').length < verification.Scopes.split(' ').length) {
+                    await revoke(permissions.accessToken, RegisterClientId, RegisterSecret);
+                    character.child('sso').ref.set(
+                        this.createCharacter(authorization, verification, state.accountId).sso
+                    );
+                }
+                else {
+                    await revoke(authorization.access_token, RegisterClientId, RegisterSecret)
+                }
             }
             else {
-                await revoke(authorization.access_token, RegisterClientId, RegisterSecret)
+                character.child('sso').ref.set(
+                    this.createCharacter(authorization, verification, state.accountId).sso
+                );  
             }
+    
+            return h.redirect(`${state.redirect}/#` + 
+                this.buildProfileToken(state.redirect, verification.Scopes.split(' '), state.accountId, verification.CharacterID)
+            );
         }
-        else {
-            character.child('sso').ref.set(
-                this.createCharacter(authorization, verification, state.accountId).sso
-            );  
-        }
-
-        return h.redirect(`${state.redirect}/#` + 
-            this.buildProfileToken(state.redirect, verification.Scopes.split(' '), state.accountId, verification.CharacterID)
-        );
     }
 
     private getCharacter = (characterId: number | string): Promise<database.DataSnapshot> => {
@@ -295,7 +308,16 @@ export default class Authentication {
         };
     }
 
-    private buildProfileToken = (host, scopes: string[], accountId: string | number, mainId): string => {
+    private buildScopesToken = (host: string, character: database.DataSnapshot, missingScopes: string[]): string => {
+        return jwt.sign({ 
+            aud: host,
+            mainId: character.key,
+            accountId: character.child('accountId').val(),
+            scopes: missingScopes
+        }, process.env.JWT_SECRET_KEY);
+    }
+
+    private buildProfileToken = (host: string, scopes: string[], accountId: string | number, mainId): string => {
         return jwt.sign({
             iss: 'https://api.chingy.tools',
             sub: 'profile',

@@ -271,6 +271,18 @@ const createDiscordRoutes = () => {
         handler: discord.callbackHandler
     });
 
+    // server.route({
+    //     method: 'GET',
+    //     path: '/discord/bot',
+    //     handler: discord.botHandler
+    // })
+
+    server.route({
+        method: 'POST',
+        path: '/discord/refresh/all',
+        handler: discord.refreshHandler
+    });
+
 }
 
 init().then(server => {

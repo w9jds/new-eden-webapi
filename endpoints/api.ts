@@ -1,9 +1,15 @@
 import { Request, ResponseToolkit, ResponseObject } from 'hapi';
-import { badRequest } from 'boom';
+import { badRequest, internal } from 'boom';
 import { database } from 'firebase-admin';
-import { setWaypoint } from '../lib/esi';
+import { setWaypoint, getRoute } from '../lib/esi';
 import { Character } from '../models/character';
 import { PostBody } from '../models/routes';
+
+interface RoutesPayload {
+    end: string | number,
+    start: any[],
+    type: string
+}
 
 export default class Api {
 
@@ -21,7 +27,55 @@ export default class Api {
         throw badRequest();
     }
 
-    public routesHandler = (request: Request, h: ResponseToolkit) => {
+    public routesHandler = async (request: Request, h: ResponseToolkit) => {
+        let body = request.payload as RoutesPayload;
+        let starts = {}, finished = {}, uniqueIds = [], systems = new Map();
 
+        try {
+            if (body.start && body.end) {
+                let routes = await Promise.all(
+                    body.start.map((start: string | number) => getRoute(start, body.end, body.type))
+                );
+
+                routes.forEach((route: any[], index: number) => {
+                    route.forEach(id => {
+                        if (uniqueIds.indexOf(id) < 0) {
+                            uniqueIds.push(id);
+                        }
+
+                        starts[body.start[index]] = route;
+                    });
+                });
+
+                let metadata = await Promise.all(
+                    uniqueIds.map(systemId => this.firebase
+                        .ref(`universe/systems/k_space/${systemId}`).once('value'))
+                );
+
+                metadata.forEach((system: database.DataSnapshot) => {
+                    systems.set(system.key, system.val());
+                });
+
+                Object.keys(starts).forEach(key => {
+                    let route = starts[key].map(id => {
+                        return systems.get(id.toString());
+                    });
+        
+                    if (route[route.length - 1].id != body.end) {
+                        route.reverse();
+                    }
+        
+                    finished[route[0].name] = route;
+                });
+
+                return finished;
+            }
+            else {
+                return badRequest('Invalid request. Requires a "end" system, and an array of "start" systems');
+            }
+        }
+        catch(error) {
+            return internal();
+        }
     }
 }

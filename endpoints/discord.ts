@@ -4,7 +4,7 @@ import { Request, ResponseToolkit, ResponseObject } from 'hapi';
 import { DiscordClientId, DiscordRedirect } from '../config/config';
 import { verifyJwt } from './auth';
 import { Payload } from '../models/payload';
-import { validate, getCurrentUser } from '../lib/discord';
+import { validate, getCurrentUser, refresh } from '../lib/discord';
 import { Tokens, User } from '../models/discord';
 import { badRequest } from 'boom';
 import { AccountsOrigin } from '../config/config';
@@ -46,5 +46,45 @@ export default class Discord {
         return h.redirect(`${AccountsOrigin}`);
     }
 
+    public botHandler = async (request: Request, h:ResponseToolkit): Promise<ResponseObject> => {
+        let code: string = request.query.code;
+        let guildId: string = request.query.guild_id;
+
+        let tokens: Tokens = await validate(request.query.code);
+        this.firebase.ref(`aura`).set({
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            expiresAt: moment().add((tokens.expires_in - 60), 'seconds').valueOf(),
+            tokenType: tokens.token_type,
+            scope: tokens.scope
+        });
+
+        return h.response().code(201);
+    }
+
+    public refreshHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
+        let accounts: database.DataSnapshot = await this.firebase.ref('discord').once('value');
+        
+        accounts.forEach(account => {
+            this.processAccount(account);
+            return false;
+        });
+        
+        return h.response().code(201);
+    }
+
+    private processAccount = async (account: database.DataSnapshot): Promise<boolean> => {
+        let tokens = await refresh(account.child('refreshToken').val());
+
+        this.firebase.ref(`discord/${account.key}`).update({
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
+            expiresAt: moment().add((tokens.expires_in - 60), 'seconds').valueOf(),
+            tokenType: tokens.token_type,
+            scope: tokens.scope
+        });
+
+        return false;
+    }
 
 }
