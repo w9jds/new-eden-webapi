@@ -3,13 +3,6 @@
   "version": "1.0.0",
   "description": "chingy chonga web api abstraction for eve online account management",
   "author": "Jeremy Shore (Chingy Chonga)",
-  "repository": {
-    "type": "git",
-    "url": ""
-  },
-  "engines": {
-    "node": "9.x"
-  },
   "scripts": {
     "build": "webpack --verbose --colors",
     "build-prod": "npm run build && docker build -t chingy-webapi .",

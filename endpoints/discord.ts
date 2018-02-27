@@ -17,9 +17,9 @@ export default class Discord {
         if (!request.query.token) {
             throw badRequest('Request is missing a token query containing the profile information.');
         }
-        
+
         verifyJwt(request.query.token);
-        return h.redirect(`https://discordapp.com/api/oauth2/authorize?client_id=${DiscordClientId}&redirect_uri=${encodeURIComponent(DiscordRedirect)}&response_type=code&scope=identify%20email%20guilds%20guilds.join&state=${request.query.token}`);
+        return h.redirect(`https://discordapp.com/api/oauth2/authorize?client_id=${DiscordClientId}&redirect_uri=${encodeURIComponent(DiscordRedirect)}&response_type=code&scope=identify%20guilds.join&state=${request.query.token}`);
     }
 
     public callbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
@@ -64,12 +64,12 @@ export default class Discord {
 
     public refreshHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
         let accounts: database.DataSnapshot = await this.firebase.ref('discord').once('value');
-        
+
         accounts.forEach(account => {
             this.processAccount(account);
             return false;
         });
-        
+
         return h.response().code(201);
     }
 

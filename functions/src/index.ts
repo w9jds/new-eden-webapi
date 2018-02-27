@@ -12,8 +12,11 @@ let locations = new LocationHandlers(firebase.database());
 let universe = new UniverseHandler(firebase.database());
 let storage = new StorageHandlers(firebase.storage());
 
-export const onAllianceUpdate = locations.onAllianceUpdate;
-export const onCorpUpdate = locations.onCorpUpdate;
-export const onCharacterCreate = character.onNewCharacter;
-export const onNewRoute = database.ref('universe/routes/{systemId}/name')
-    .onCreate(universe.onNewRoute);
+export const onAllianceUpdate = database.ref('characters/{userId}/allianceId')
+    .onUpdate(locations.onAffiliationsUpdate);
+export const onCorpUpdate = database.ref('characters/{userId}/corpId')
+    .onUpdate(locations.onAffiliationsUpdate);
+export const onCharacterCreate = database.ref('characters/{characterId}')
+    .onCreate(character.onNewCharacter);
+export const onCharacterLogin = database.ref('characters/{characterId}/sso')
+    .onCreate(character.onCharacterLogin);
