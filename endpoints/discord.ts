@@ -2,7 +2,7 @@ import * as moment from 'moment';
 import { database } from 'firebase-admin';
 import { Request, ResponseToolkit, ResponseObject } from 'hapi';
 import { DiscordClientId, DiscordRedirect } from '../config/config';
-import { verifyJwt } from './auth';
+import { encryptState, decryptState } from './auth';
 import { Payload } from '../models/payload';
 import { validate, getCurrentUser, refresh } from '../lib/discord';
 import { Tokens, User } from '../models/discord';
@@ -14,21 +14,20 @@ export default class Discord {
     constructor(private firebase: database.Database) { }
 
     public loginHandler = (request: Request, h: ResponseToolkit): ResponseObject => {
-        if (!request.query.token) {
-            throw badRequest('Request is missing a token query containing the profile information.');
-        }
+        let authorization = request.auth.credentials as Payload;
+        let cipherText = encryptState(authorization);
 
-        verifyJwt(request.query.token);
-        return h.redirect(`https://discordapp.com/api/oauth2/authorize?client_id=${DiscordClientId}&redirect_uri=${encodeURIComponent(DiscordRedirect)}&response_type=code&scope=identify%20guilds.join&state=${request.query.token}`);
+        return h.redirect(`https://discordapp.com/api/oauth2/authorize?client_id=${DiscordClientId}`
+            + `&redirect_uri=${encodeURIComponent(DiscordRedirect)}&response_type=code&scope=identify%20guilds.join&state=${cipherText}`);
     }
 
     public callbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
-        if (request.query.error) {
+        if (request.query['error']) {
             return h.redirect(AccountsOrigin);
         }
 
-        let state: Payload = verifyJwt(request.query.state);
-        let tokens: Tokens = await validate(request.query.code);
+        let state: Payload = decryptState(request.query['state']);
+        let tokens: Tokens = await validate(request.query['code']);
         let user: User = await getCurrentUser(tokens.access_token);
 
         this.firebase.ref(`discord/${user.id}`).set({
@@ -45,46 +44,4 @@ export default class Discord {
 
         return h.redirect(`${AccountsOrigin}`);
     }
-
-    public botHandler = async (request: Request, h:ResponseToolkit): Promise<ResponseObject> => {
-        let code: string = request.query.code;
-        let guildId: string = request.query.guild_id;
-
-        let tokens: Tokens = await validate(request.query.code);
-        this.firebase.ref(`aura`).set({
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token,
-            expiresAt: moment().add((tokens.expires_in - 60), 'seconds').valueOf(),
-            tokenType: tokens.token_type,
-            scope: tokens.scope
-        });
-
-        return h.response().code(201);
-    }
-
-    public refreshHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
-        let accounts: database.DataSnapshot = await this.firebase.ref('discord').once('value');
-
-        accounts.forEach(account => {
-            this.processAccount(account);
-            return false;
-        });
-
-        return h.response().code(201);
-    }
-
-    private processAccount = async (account: database.DataSnapshot): Promise<boolean> => {
-        let tokens = await refresh(account.child('refreshToken').val());
-
-        this.firebase.ref(`discord/${account.key}`).update({
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token,
-            expiresAt: moment().add((tokens.expires_in - 60), 'seconds').valueOf(),
-            tokenType: tokens.token_type,
-            scope: tokens.scope
-        });
-
-        return false;
-    }
-
 }

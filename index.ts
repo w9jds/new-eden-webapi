@@ -9,7 +9,7 @@ import Discourse from './endpoints/discourse';
 import Discord from './endpoints/discord';
 import Api from './endpoints/api';
 
-import { DatabaseConfig } from './config/config';
+import { DatabaseConfig, AccountsOrigin } from './config/config';
 import { Payload } from './models/payload';
 import { Character } from './models/character';
 
@@ -46,7 +46,7 @@ const firebaseScheme = (server: Server, options: ServerAuthSchemeOptions) => {
             }).catch(error => {
                 throw unauthorized(error);
             });
-            
+
         }
     };
 };
@@ -56,20 +56,17 @@ const jwtScheme = (server: Server, options: ServerAuthSchemeOptions) => {
         authenticate: (request: Request, h: ResponseToolkit) => {
             let header = request.headers.authorization;
 
-            if (!header || header.split(' ')[0] != 'Bearer') {
+            if ((!header || header.split(' ')[0] != 'Bearer') && !request.state.profile_jwt && !request.state.profile_session) {
                 throw unauthorized();
             }
-    
+
             try {
-                let token: Payload = verifyJwt(header.split(' ')[1]);
+                let payload = header && header.split(' ')[1] ? header.split(' ')[1] : 
+                    request.state.profile_jwt || request.state.profile_session;
+                let token: Payload = verifyJwt(payload);
+
                 if (token && token.aud) {
-                    if (token.aud != request.info.host) {
-                        throw unauthorized('invalid_client: Token is for another client');
-                    }
-                    
-                    return h.authenticated({ 
-                        credentials: token
-                    });
+                    return h.authenticated({ credentials: token });
                 }
                 else {
                     throw unauthorized();
@@ -83,12 +80,13 @@ const jwtScheme = (server: Server, options: ServerAuthSchemeOptions) => {
 };
 
 async function init(): Promise<Server> {
+    let isProd: boolean = process.env.NODE_ENV == 'production';
 
     server.route({
         method : 'OPTIONS',
         path : '/{params*}',
-        options: { 
-            handler: (request, h) => { 
+        options: {
+            handler: (request, h) => {
                 return h.response({ok: true})
                     .header('Access-Control-Allow-Origin', request.headers.origin || request.headers.Origin)
                     .header('Access-Control-Allow-Credentials', 'true')
@@ -108,22 +106,35 @@ async function init(): Promise<Server> {
             return h.response({
                 endpoints: [
                     '/auth/login',
+                    '/auth/logout',
                     '/auth/register',
-                    '/auth/verify/',
+                    '/auth/updateScopes',
                     '/auth/addCharacter',
-                    '/discourse/login'
+                    '/auth/verify/{userId*}',
+                    '/discourse/login',
+                    '/discord/login'
                 ]
             });
         }
+    });
+
+    server.state('profile_jwt', {
+        isSameSite: false,
+        isSecure: isProd,
+        isHttpOnly: true,
+        encoding: 'iron',
+        password: process.env.COOKIE_PASSWORD,
+        clearInvalid: true,
+        strictHeader: true
     });
 
     createApiRoutes();
     createAuthRoutes();
     createDiscordRoutes();
     createDiscourseRoutes();
-    
-    await server.start();
 
+    await server.start();
+    
     return server;
 }
 
@@ -139,10 +150,14 @@ const createApiRoutes = () => {
         handler: api.waypointHandler,
         options: {
             auth: 'firebase-auth',
+            state: {
+                parse: true,
+                failAction: 'error'
+            },
             cors: {
                 origin: ['*'],
                 additionalHeaders: [
-                    'authorization', 
+                    'authorization',
                     'content-type'
                 ]
             }
@@ -158,7 +173,7 @@ const createApiRoutes = () => {
             cors: {
                 origin: ['*'],
                 additionalHeaders: [
-                    'authorization', 
+                    'authorization',
                     'content-type'
                 ]
             }
@@ -183,6 +198,15 @@ const createAuthRoutes = () => {
 
     server.route({
         method: 'GET',
+        path: '/auth/logout',
+        options: {
+            auth: false,
+            handler: authentication.logoutHandler
+        }
+    })
+
+    server.route({
+        method: 'GET',
         path: '/auth/register',
         options: {
             auth: false,
@@ -194,7 +218,11 @@ const createAuthRoutes = () => {
         method: 'GET',
         path: '/auth/updateScopes',
         options: {
-            auth: false,
+            auth: 'jwt-auth',
+            state: {
+                parse: true,
+                failAction: 'error'
+            },
             handler: authentication.modifyScopesHandler
         }
     });
@@ -203,7 +231,11 @@ const createAuthRoutes = () => {
         method: 'GET',
         path: '/auth/addCharacter',
         options: {
-            auth: false,
+            auth: 'jwt-auth',
+            state: {
+                parse: true,
+                failAction: 'error'
+            },
             handler: authentication.addCharacterHandler
         }
     });
@@ -214,8 +246,13 @@ const createAuthRoutes = () => {
         handler: authentication.verifyHandler,
         options: {
             auth: 'jwt-auth',
+            state: {
+                parse: true,
+                failAction: 'ignore'
+            },
             cors: {
                 origin: ['*'],
+                credentials: true,
                 additionalHeaders: ['authorization']
             }
         }
@@ -246,13 +283,19 @@ const createDiscourseRoutes = () => {
     server.route({
         method: 'GET',
         path: '/discourse/login',
-        handler: discourse.loginHandler
+        handler: discourse.loginHandler,
+        options: {
+            auth: false
+        }
     });
 
     server.route({
         method: 'GET',
         path: '/discourse/callback',
-        handler: discourse.callbackHandler
+        handler: discourse.callbackHandler,
+        options: {
+            auth: false
+        }
     });
 }
 
@@ -262,25 +305,23 @@ const createDiscordRoutes = () => {
     server.route({
         method: 'GET',
         path: '/discord/login',
-        handler: discord.loginHandler
+        handler: discord.loginHandler,
+        options: {
+            auth: 'jwt-auth',
+            state: {
+                parse: true,
+                failAction: 'error'
+            }
+        }
     });
 
     server.route({
         method: 'GET',
         path: '/discord/callback',
-        handler: discord.callbackHandler
-    });
-
-    // server.route({
-    //     method: 'GET',
-    //     path: '/discord/bot',
-    //     handler: discord.botHandler
-    // })
-
-    server.route({
-        method: 'POST',
-        path: '/discord/refresh/all',
-        handler: discord.refreshHandler
+        handler: discord.callbackHandler,
+        options: {
+            auth: false
+        }
     });
 
 }
@@ -288,5 +329,5 @@ const createDiscordRoutes = () => {
 init().then(server => {
     console.log('Server running at:', server.info.uri);
 }).catch(error => {
-    console.log(error);  
+    console.log(error);
 });

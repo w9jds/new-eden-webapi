@@ -23,7 +23,8 @@
   },
   "devDependencies": {
     "@types/boom": "^7.1.1",
-    "@types/hapi": "^17.0.0",
+    "@types/crypto-js": "^3.1.38",
+    "@types/hapi": "^17.0.4",
     "@types/isomorphic-fetch": "^0.0.34",
     "@types/jsonwebtoken": "^7.2.5",
     "@types/node": "^9.4.0",

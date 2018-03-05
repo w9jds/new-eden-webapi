@@ -10,6 +10,7 @@ export interface Payload {
 }
 
 export interface State extends Payload {
+    response_type?: string;
     type?: string;
     redirect?: string;
 }
