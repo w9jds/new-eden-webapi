@@ -135,13 +135,17 @@ export default class Authentication {
         }
 
         let profile: database.DataSnapshot = await this.getProfile(character.child('accountId').val());
-        let token = this.buildProfileToken(state.aud, state.scopes, profile.key, profile.child('mainId').val());
+        let token = this.buildProfileToken(state.aud, profile.key, profile.child('mainId').val());
         let missingScopes = verifyScopes(state.scopes, character.child('sso').val() as Permissions, h);
 
         if (missingScopes) {
-            let token = this.buildScopesToken(request.info.host, character, missingScopes);
+            let cipherText = encryptState({
+                mainId: character.key,
+                accountId: character.child('accountId').val(),
+                scopes: missingScopes
+            });
             return this.redirect(`${AccountsOrigin}?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}`
-                + `&redirect=${state.redirect}&state=${token}`, token, state.response_type, h);
+                + `&redirect=${state.redirect}&state=${cipherText}`, token, state.response_type, h);
         }
 
         return this.redirect(state.redirect, token, state.response_type, h);
@@ -194,23 +198,21 @@ export default class Authentication {
 
         character.child('sso').ref.set(this.createCharacter(tokens, verification, state.accountId).sso);
         
-        let token = this.buildProfileToken(
-            state.redirect,
-            verification.Scopes.split(' '),
-            state.accountId,
-            verification.CharacterID
-        );
+        let token = this.buildProfileToken(state.redirect, state.accountId, verification.CharacterID);
         return this.redirect(state.redirect, token, state.response_type, h);
     }
 
     public modifyScopesHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
-        let authorization = request.auth.credentials as Payload;
-        
         if (!request.query['redirect_to']) {
             throw badRequest('Invalid Request, redirect_to parameter is required.');
         }
+        if (!request.query['state']) {
+            throw badRequest('Invalid Request, state parameter is required.');
+        }
 
-        let character = await this.getCharacter(authorization.mainId);
+        let state = decryptState(request.query['state']);
+        let character = await this.getCharacter(state.mainId);
+
         if (!character.exists()) {
             throw badRequest('Invalid Request, character not found.');
         }
@@ -218,21 +220,21 @@ export default class Authentication {
         if (character.hasChild('sso')) {
             let permissions = character.child('sso').val() as Permissions;
             permissions.scope.split(' ').forEach(scope => {
-                if (authorization.scopes.indexOf(scope) < 0) {
-                    authorization.scopes.push(scope);
+                if (state.scopes.indexOf(scope) < 0) {
+                    state.scopes.push(scope);
                 }
             });
         }
         else {
             defaultScopes.forEach(scope => {
-                if (authorization.scopes.indexOf(scope) < 0) {
-                    authorization.scopes.push(scope);
+                if (state.scopes.indexOf(scope) < 0) {
+                    state.scopes.push(scope);
                 }
             });
         }
 
         return h.redirect(`/auth/register?redirect_to=${decodeURIComponent(request.query['redirect_to'])}`
-            + `&response_type=none&scopes=${authorization.scopes.join('%20')}`);
+            + `&response_type=none&scopes=${state.scopes.join('%20')}`);
     }
 
     public addCharacterHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
@@ -260,6 +262,11 @@ export default class Authentication {
     }
 
     public verifyHandler = async (request: Request, h: ResponseToolkit) => {
+        if (!request.query['scopes']) {
+            throw badRequest('Invalid request, scopes parameter is required.');
+        }
+
+        let scopes: string[] = decodeURIComponent(request.query['scopes']).split(' ');
         let authorization = request.auth.credentials as Payload;
         let characterId: string | number = request.params.userId || authorization.mainId;
         let profile: database.DataSnapshot = await this.getProfile(authorization.accountId);
@@ -272,7 +279,7 @@ export default class Authentication {
         if (!character.exists()) {
             return h.response({
                 error: 'invalid_character',
-                redirect: `${AccountsOrigin}?type=character_not_found&redirect_to=${request.info.referrer}&scopes=${authorization.scopes.join('%20')}`
+                redirect: `${AccountsOrigin}?type=character_not_found&redirect_to=${request.info.referrer}&scopes=${scopes.join('%20')}`
             }).code(503);
         }
 
@@ -280,12 +287,18 @@ export default class Authentication {
             throw unauthorized('Character not part of provided profile!');
         }
 
-        let missingScopes = verifyScopes(authorization.scopes, character.child('sso').val() as Permissions, h);
-        if (missingScopes) {
-            let token = this.buildScopesToken(request.info.referrer, character, missingScopes);
+        let missingScopes = verifyScopes(scopes, character.child('sso').val() as Permissions, h);
+        if (missingScopes && missingScopes.length > 0) {
+            let cipherText = encryptState({
+                mainId: character.key,
+                accountId: character.child('accountId').val(),
+                scopes: missingScopes
+            });
+
             return h.response({
-                error: 'invalid_scopes',
-                redirect: `${AccountsOrigin}?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}&redirect=${request.info.referrer}&state=${token}`
+                error: 'missing_scopes',
+                redirect: `${AccountsOrigin}?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}`
+                    + `&redirect=${request.info.referrer}&state=${cipherText}`
             }).code(503);
         }
 
@@ -340,7 +353,7 @@ export default class Authentication {
         }
         if (type == 'persistant') {
             h.state('profile_jwt', token, {
-                domain: 'new-eden.io',
+                domain: 'new-eden.io', 
                 path: '/',
                 ttl: 1000 * 60 * 60 * 24 * 365 * 10
             });
@@ -369,24 +382,15 @@ export default class Authentication {
             })
         ]);
 
-        return this.buildProfileToken(state.aud, state.scopes, accountId, verification.CharacterID);
+        return this.buildProfileToken(state.aud, accountId, verification.CharacterID);
     }
 
-    private buildScopesToken = (host: string, character: database.DataSnapshot, missingScopes: string[]): string => {
-        return jwt.sign({
-            aud: host,
-            mainId: character.key,
-            accountId: character.child('accountId').val(),
-            scopes: missingScopes
-        }, process.env.JWT_SECRET_KEY);
-    }
-
-    private buildProfileToken = (host: string, scopes: string[], accountId: string | number, mainId): string => {
+    private buildProfileToken = (host: string, accountId: string | number, mainId): string => {
         return jwt.sign({
             iss: 'https://api.new-eden.io',
             sub: 'profile',
             aud: host,
-            accountId, mainId, scopes
+            accountId, mainId
         }, process.env.JWT_SECRET_KEY);
     }
 }
