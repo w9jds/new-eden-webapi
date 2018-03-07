@@ -134,15 +134,16 @@ export default class Authentication {
                 + `&scopes=${state.scopes.join('%20')}`);
         }
 
-        let missingScopes = verifyScopes(state.scopes, character.child('sso').val() as Permissions, h);
-        if (missingScopes) {
-            let token = this.buildScopesToken(request.info.host, character, missingScopes);
-            return h.redirect(`${AccountsOrigin}?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}`
-                + `&redirect=${state.redirect}&state=${token}`);
-        }
-
         let profile: database.DataSnapshot = await this.getProfile(character.child('accountId').val());
         let token = this.buildProfileToken(state.aud, state.scopes, profile.key, profile.child('mainId').val());
+        let missingScopes = verifyScopes(state.scopes, character.child('sso').val() as Permissions, h);
+
+        if (missingScopes) {
+            let token = this.buildScopesToken(request.info.host, character, missingScopes);
+            return this.redirect(`${AccountsOrigin}?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}`
+                + `&redirect=${state.redirect}&state=${token}`, token, state.response_type, h);
+        }
+
         return this.redirect(state.redirect, token, state.response_type, h);
     }
 
@@ -171,7 +172,6 @@ export default class Authentication {
         let verification = await verify(tokens.token_type, tokens.access_token);
         let character: database.DataSnapshot = await this.getCharacter(verification.CharacterID);
 
-        console.log(character.key);
         if (!character.exists()) {
             if (state.type == types.register) {
                 let token = await this.createNewProfile(state, request, tokens, verification);
@@ -273,7 +273,7 @@ export default class Authentication {
             return h.response({
                 error: 'invalid_character',
                 redirect: `${AccountsOrigin}?type=character_not_found&redirect_to=${request.info.referrer}&scopes=${authorization.scopes.join('%20')}`
-            }).code(400);
+            }).code(503);
         }
 
         if (character.child('accountId').val() != authorization.accountId) {
@@ -286,7 +286,7 @@ export default class Authentication {
             return h.response({
                 error: 'invalid_scopes',
                 redirect: `${AccountsOrigin}?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}&redirect=${request.info.referrer}&state=${token}`
-            }).code(401);
+            }).code(503);
         }
 
         return h.response({ 
@@ -340,6 +340,7 @@ export default class Authentication {
         }
         if (type == 'persistant') {
             h.state('profile_jwt', token, {
+                domain: 'new-eden.io',
                 path: '/',
                 ttl: 1000 * 60 * 60 * 24 * 365 * 10
             });
@@ -347,6 +348,7 @@ export default class Authentication {
         }
         if (type == 'session') {
             h.state('profile_jwt', token, {
+                domain: 'new-eden.io',
                 path: '/'
             });
             return h.redirect(`${uri}`);
@@ -381,7 +383,7 @@ export default class Authentication {
 
     private buildProfileToken = (host: string, scopes: string[], accountId: string | number, mainId): string => {
         return jwt.sign({
-            iss: 'https://api.chingy.tools',
+            iss: 'https://api.new-eden.io',
             sub: 'profile',
             aud: host,
             accountId, mainId, scopes

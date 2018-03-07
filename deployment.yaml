@@ -44,18 +44,19 @@ spec:
   selector:
     run: webapi
 ---
-apiVersion: extensions/v1beta1
+apiVersion:  extensions/v1beta1
 kind: Ingress
 metadata:
-  name: chingy-tls
+  name: new-eden-tls
   namespace: default
-  # annotations:
-  #   kubernetes.io/ingress.allow-http: "false"
+  annotations:
+    kubernetes.io/ingress.global-static-ip-name: api-neweden-ip
+    # kubernetes.io/ingress.allow-http: false
 spec:
   tls:
   - hosts:
-    - api.chingy.tools
-    secretName: godaddy-chingytools-tls
+    - api.new-eden.io
+    secretName: godaddy-neweden-tls
   backend:
     serviceName: webapi
     servicePort: https
