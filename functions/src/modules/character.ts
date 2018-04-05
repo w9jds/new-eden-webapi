@@ -1,4 +1,4 @@
-import {database, Event} from 'firebase-functions';
+import {database, EventContext} from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import {getCharacter, getRoles, getTitles} from '../../../lib/esi';
 
@@ -6,12 +6,12 @@ export default class CharacterHandlers {
 
     constructor(private firebase: admin.database.Database) { }
 
-    public onNewCharacter = (event: Event<database.DeltaSnapshot>) => {
-        return this.populateCharacterInfo(event.params.characterId, event.data.current.child('sso/accessToken').val(), event.data.current.ref);
+    public onNewCharacter = (snapshot: database.DataSnapshot, context?: EventContext) => {
+        return this.populateCharacterInfo(context.params.characterId, snapshot.child('sso/accessToken').val(), snapshot.ref);
     };
 
-    public onCharacterLogin = (event: Event<database.DeltaSnapshot>) => {
-        return this.populateCharacterInfo(event.params.characterId, event.data.current.child('accessToken').val(), event.data.current.ref.parent);
+    public onCharacterLogin = (snapshot: database.DataSnapshot, context?: EventContext) => {
+        return this.populateCharacterInfo(context.params.characterId, snapshot.child('accessToken').val(), snapshot.ref.parent);
     }
 
     private populateCharacterInfo = async (characterId: string, accessToken: string, ref: admin.database.Reference) => {
@@ -39,7 +39,9 @@ export default class CharacterHandlers {
     private updateFlags = async (accountId: string) => {
         let hasError = false;
         let characters = await this.firebase.ref('characters')
-            .orderByChild('accountId').equalTo(accountId).once('value');
+            .orderByChild('accountId')
+            .equalTo(accountId)
+            .once('value');
 
         characters.forEach((character: admin.database.DataSnapshot) => {
             let error = !character.hasChild('sso');

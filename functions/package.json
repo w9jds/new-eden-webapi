@@ -5,20 +5,20 @@
     "build": "webpack --verbose --colors"
   },
   "dependencies": {
-    "@google-cloud/storage": "^1.6.0",
+    "@google-cloud/bigquery": "^1.1.0",
     "babel-polyfill": "^6.26.0",
-    "firebase-admin": "^5.8.2",
-    "firebase-functions": "^0.8.1",
+    "firebase-admin": "^5.11.0",
+    "firebase-functions": "^1.0.0",
     "isomorphic-fetch": "^2.2.1"
   },
   "devDependencies": {
     "@types/isomorphic-fetch": "^0.0.34",
-    "@types/node": "^9.4.0",
+    "@types/node": "^9.6.2",
     "babel-core": "^6.26.0",
     "babel-loader": "^7.1.2",
     "babel-preset-env": "^1.6.1",
-    "ts-loader": "^3.4.0",
-    "typescript": "^2.7.1",
+    "ts-loader": "^4.1.0",
+    "typescript": "^2.8.1",
     "webpack": "^3.10.0",
     "webpack-dev-middleware": "^2.0.4",
     "webpack-hot-middleware": "^2.21.0",

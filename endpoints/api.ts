@@ -27,6 +27,15 @@ export default class Api {
         throw badRequest();
     }
 
+    public loggingHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
+        let log = request.payload;
+        let credentials = request.auth.credentials as Character;
+
+        
+
+        return h.response().code(204);
+    }
+
     public routesHandler = async (request: Request, h: ResponseToolkit) => {
         let body = request.payload as RoutesPayload;
         let starts = {}, finished = {}, uniqueIds = [], systems = new Map();

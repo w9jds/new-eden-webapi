@@ -79,7 +79,7 @@ const jwtScheme = (server: Server, options: ServerAuthSchemeOptions) => {
     };
 };
 
-async function init(): Promise<Server> {
+const init = async (): Promise<Server> => {
     let isProd: boolean = process.env.NODE_ENV == 'production';
 
     server.route({
@@ -179,6 +179,26 @@ const createApiRoutes = () => {
             }
         }
     });
+
+    // server.route({
+    //     method: 'POST',
+    //     path: '/logging',
+    //     handler: api.loggingHandler,
+    //     options: {
+    //         auth: 'firebase-auth',
+    //         state: {
+    //             parse: true,
+    //             failAction: 'error'
+    //         },
+    //         cors: {
+    //             origin: ['*'],
+    //             additionalHeaders: [
+    //                 'authorization',
+    //                 'content-type'
+    //             ]
+    //         }
+    //     }
+    // });
 }
 
 const createAuthRoutes = () => {

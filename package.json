@@ -9,6 +9,7 @@
     "build-watch": "webpack --watch --verbose --colors"
   },
   "dependencies": {
+    "@google-cloud/logging": "^1.1.7",
     "atob": "^2.0.3",
     "babel-polyfill": "^6.26.0",
     "boom": "^7.1.1",
