@@ -179,26 +179,6 @@ const createApiRoutes = () => {
             }
         }
     });
-
-    // server.route({
-    //     method: 'POST',
-    //     path: '/logging',
-    //     handler: api.loggingHandler,
-    //     options: {
-    //         auth: 'firebase-auth',
-    //         state: {
-    //             parse: true,
-    //             failAction: 'error'
-    //         },
-    //         cors: {
-    //             origin: ['*'],
-    //             additionalHeaders: [
-    //                 'authorization',
-    //                 'content-type'
-    //             ]
-    //         }
-    //     }
-    // });
 }
 
 const createAuthRoutes = () => {
@@ -220,7 +200,11 @@ const createAuthRoutes = () => {
         method: 'GET',
         path: '/auth/logout',
         options: {
-            auth: false,
+            auth: 'jwt-auth',
+            state: {
+                parse: true,
+                failAction: 'error'
+            },
             handler: authentication.logoutHandler
         }
     })

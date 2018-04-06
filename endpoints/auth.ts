@@ -120,7 +120,11 @@ export default class Authentication {
             throw badRequest('Invalid Request, redirect_to parameter is required.');
         }
 
-        h.redirect(request.query['redirect_to']).unstate('profile_jwt');
+        h.unstate('profile_jwt', {
+            domain: 'new-eden.io',
+            path: '/'
+        });
+        return h.redirect(request.query['redirect_to']);
     }
 
     public loginCallbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
