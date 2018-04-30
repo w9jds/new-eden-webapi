@@ -1,12 +1,12 @@
 import * as moment from 'moment';
 import * as CryptoJs from 'crypto-js';
-import * as jwt from 'jsonwebtoken';
+import {verify as Verify, sign} from 'jsonwebtoken';
 import * as queryString from 'query-string';
 
 import { ResponseObject } from 'hapi';
 import { internal, unauthorized } from 'boom';
 import { login, verify } from '../lib/auth';
-import { getCharacter } from '../lib/esi';
+import { Esi } from 'node-esi-stackdriver';
 import { ForumClientId, ForumSecret, ForumRedirect } from '../config/config';
 
 import * as atob from 'atob';
@@ -14,7 +14,7 @@ import * as btoa from 'btoa';
 
 export const verifyJwt = (token) => {
     try {
-        return jwt.verify(token, process.env.JWT_SECRET_KEY);
+        return Verify(token, process.env.JWT_SECRET_KEY);
     }
     catch(error) {
         throw unauthorized(error);
@@ -23,12 +23,12 @@ export const verifyJwt = (token) => {
 
 export default class Discourse {
 
-    constructor() { }
+    constructor(private esi: Esi) { }
 
     public loginHandler = (request, h) => {
         let hash = CryptoJs.HmacSHA256(request.query.sso, ForumSecret);
         
-        let state = jwt.sign({
+        let state = sign({
             sso: queryString.parse(atob(request.query.sso)),
             sig: request.query.sig
         }, process.env.JWT_SECRET_KEY);
@@ -43,7 +43,7 @@ export default class Discourse {
     public callbackHandler = async (request, h): Promise<ResponseObject> => {
         let tokens = await login(request.query.code, ForumClientId, ForumSecret);
         let verification = await verify(tokens.token_type, tokens.access_token);
-        let character = await getCharacter(verification.CharacterID);
+        let character = await this.esi.getCharacter(verification.CharacterID);
         let state = verifyJwt(request.query.state);
         
         let query = {

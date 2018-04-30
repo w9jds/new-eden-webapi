@@ -1,6 +1,6 @@
 import * as CryptoJs from 'crypto-js';
 import * as moment from 'moment';
-import * as jwt from 'jsonwebtoken';
+import {verify as Verify, sign} from 'jsonwebtoken';
 import * as atob from 'atob';
 import * as btoa from 'btoa';
 
@@ -9,7 +9,7 @@ import { database, auth } from 'firebase-admin';
 import { Request, ResponseToolkit, ResponseObject } from 'hapi';
 import { badRequest, unauthorized } from 'boom';
 import { login, verify } from '../lib/auth';
-import { Character, Permissions } from '../models/character';
+import { Character, Permissions } from 'node-esi-stackdriver';
 import { Profile } from '../models/profile';
 import { Payload, State } from '../models/payload';
 import { revoke } from '../lib/auth';
@@ -30,7 +30,7 @@ const defaultScopes = [
 
 export const verifyJwt = (token): Payload => {
     try {
-        return jwt.verify(token, process.env.JWT_SECRET_KEY) as Payload;
+        return Verify(token, process.env.JWT_SECRET_KEY) as Payload;
     }
     catch(error) {
         throw unauthorized(error);
@@ -390,7 +390,7 @@ export default class Authentication {
     }
 
     private buildProfileToken = (host: string, accountId: string | number, mainId): string => {
-        return jwt.sign({
+        return sign({
             iss: 'https://api.new-eden.io',
             sub: 'profile',
             aud: host,

@@ -2,7 +2,7 @@ var nodeExternals = require('webpack-node-externals');
 var path = require('path');
 
 module.exports = {
-    entry: ['babel-polyfill', 'isomorphic-fetch', './src/index.ts'],
+    entry: ['./src/index.ts'],
     context: __dirname,
     output: {
         path: __dirname,
@@ -10,11 +10,13 @@ module.exports = {
         libraryTarget: 'this'
     },
     target: 'node',
+    mode: 'development',
     module: {
         rules: [
             {
                 test: /\.tsx?$/,
                 loader: 'ts-loader',
+                exclude: /node_modules/,
                 options: {
                     transpileOnly: true
                 }
@@ -22,7 +24,7 @@ module.exports = {
         ]
     },
     resolve: {
-        extensions: ['.ts', '.tsx', '.js']
+        extensions: ['.ts', '.js']
     },
     externals: [nodeExternals()]
 };

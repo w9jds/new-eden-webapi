@@ -1,5 +1,3 @@
-import { Character } from "./character";
-
 export interface Payload {
     iss: string;
     sub: string;

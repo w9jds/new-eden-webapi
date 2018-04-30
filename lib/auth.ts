@@ -1,10 +1,30 @@
 import {UserAgent} from '../config/config';
-import {verifyResponse} from './esi';
+import fetch, {Response} from 'node-fetch';
+import {ErrorResponse, Logger} from 'node-esi-stackdriver';
+
+const logging = new Logger('auth', { projectId: 'new-eden-storage-a5c23' });
 
 let headers = {
     'Accept': 'application/json',
     'User-Agent' : UserAgent
 };
+
+const verifyResponse = async (method: string, response: Response): Promise<any | ErrorResponse> => {    
+    if (response.status >= 200 && response.status < 305) {
+        if (response.body) {
+            return await response.json();
+        }
+        return;
+    }
+
+    await logging.logHttp(method, response, await response.text());
+    
+    return {
+        error: true,
+        statusCode: response.status,
+        uri: response.url
+    }
+}
 
 export const login = (code: string, clientId: string, secret: string): Promise<any> => {
     return fetch('https://login.eveonline.com/oauth/token', {
@@ -37,7 +57,7 @@ export const verify = (type: string, token: string): Promise<any> => {
     });
 }
 
-export async function refresh(refreshToken: string, clientId: string, secret: string): Promise<any> {
+export const refresh = async (refreshToken: string, clientId: string, secret: string): Promise<any> => {
     return fetch('https://login.eveonline.com/oauth/token', {
         method: 'POST',
         headers: {

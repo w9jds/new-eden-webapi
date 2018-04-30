@@ -2,6 +2,9 @@
 /******/ 	// The module cache
 /******/ 	var installedModules = {};
 /******/
+/******/ 	// object to store loaded and loading wasm modules
+/******/ 	var installedWasmModules = {};
+/******/
 /******/ 	// The require function
 /******/ 	function __webpack_require__(moduleId) {
 /******/
@@ -44,6 +47,11 @@
 /******/ 		}
 /******/ 	};
 /******/
+/******/ 	// define __esModule on exports
+/******/ 	__webpack_require__.r = function(exports) {
+/******/ 		Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 	};
+/******/
 /******/ 	// getDefaultExport function for compatibility with non-harmony modules
 /******/ 	__webpack_require__.n = function(module) {
 /******/ 		var getter = module && module.__esModule ?
@@ -59,501 +67,129 @@
 /******/ 	// __webpack_public_path__
 /******/ 	__webpack_require__.p = "";
 /******/
+/******/ 	// object with all compiled WebAssembly.Modules
+/******/ 	__webpack_require__.w = {};
+/******/
+/******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 1);
+/******/ 	return __webpack_require__(__webpack_require__.s = 0);
 /******/ })
 /************************************************************************/
-/******/ ([
-/* 0 */
+/******/ ({
+
+/***/ "./src/config/config.ts":
+/*!******************************!*\
+  !*** ./src/config/config.ts ***!
+  \******************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+eval("\nObject.defineProperty(exports, \"__esModule\", { value: true });\nexports.UserAgent = 'Cloud Functions - Chingy Chonga/Jeremy Shore - w9jds@live.com';\n\n\n//# sourceURL=webpack:///./src/config/config.ts?");
+
+/***/ }),
+
+/***/ "./src/index.ts":
+/*!**********************!*\
+  !*** ./src/index.ts ***!
+  \**********************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+eval("\nObject.defineProperty(exports, \"__esModule\", { value: true });\nconst firebase_functions_1 = __webpack_require__(/*! firebase-functions */ \"firebase-functions\");\nconst firebase_admin_1 = __webpack_require__(/*! firebase-admin */ \"firebase-admin\");\nconst character_1 = __webpack_require__(/*! ./modules/character */ \"./src/modules/character.ts\");\nconst locations_1 = __webpack_require__(/*! ./modules/locations */ \"./src/modules/locations.ts\");\nconst statistics_1 = __webpack_require__(/*! ./modules/statistics */ \"./src/modules/statistics.ts\");\nlet firebase = firebase_admin_1.initializeApp();\nlet character = new character_1.default(firebase.database());\nlet locations = new locations_1.default(firebase.database());\nlet statistics = new statistics_1.default(firebase.database());\nexports.onAllianceUpdate = firebase_functions_1.database.ref('characters/{userId}/allianceId')\n    .onUpdate(locations.onAffiliationsUpdate);\nexports.onCorpUpdate = firebase_functions_1.database.ref('characters/{userId}/corpId')\n    .onUpdate(locations.onAffiliationsUpdate);\nexports.onCharacterCreate = firebase_functions_1.database.ref('characters/{characterId}')\n    .onCreate(character.onNewCharacter);\nexports.onCharacterLogin = firebase_functions_1.database.ref('characters/{characterId}/sso')\n    .onCreate(character.onCharacterLogin);\nexports.onStatisticCreate = firebase_functions_1.database.ref('statistics/{eventId}')\n    .onCreate(statistics.onNewAction);\n\n\n//# sourceURL=webpack:///./src/index.ts?");
+
+/***/ }),
+
+/***/ "./src/modules/character.ts":
+/*!**********************************!*\
+  !*** ./src/modules/character.ts ***!
+  \**********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+eval("\nObject.defineProperty(exports, \"__esModule\", { value: true });\nconst tslib_1 = __webpack_require__(/*! tslib */ \"tslib\");\nconst config_1 = __webpack_require__(/*! ../config/config */ \"./src/config/config.ts\");\nconst node_esi_stackdriver_1 = __webpack_require__(/*! node-esi-stackdriver */ \"node-esi-stackdriver\");\nclass CharacterHandlers {\n    constructor(firebase) {\n        this.firebase = firebase;\n        this.onNewCharacter = (snapshot, context) => {\n            return this.populateCharacterInfo(context.params.characterId, snapshot.child('sso/accessToken').val(), snapshot.ref);\n        };\n        this.onCharacterLogin = (snapshot, context) => {\n            return this.populateCharacterInfo(context.params.characterId, snapshot.child('accessToken').val(), snapshot.ref.parent);\n        };\n        this.populateCharacterInfo = (characterId, accessToken, ref) => tslib_1.__awaiter(this, void 0, void 0, function* () {\n            let responses = yield Promise.all([\n                this.esi.getCharacter(characterId),\n                this.esi.getCharacterRoles(characterId, accessToken),\n                this.esi.getCharacterTitles(parseInt(characterId), accessToken)\n            ]);\n            if ('corporation_id' in responses[0]) {\n                yield ref.update({\n                    corpId: responses[0].corporation_id,\n                    allianceId: responses[0].alliance_id || null\n                });\n            }\n            if ('roles' in responses[1]) {\n                let roles = responses[1];\n                yield ref.update({\n                    roles: roles.roles || null\n                });\n            }\n            if ('titles' in responses[2]) {\n                let titles = responses[2];\n                yield ref.update({\n                    titles: titles.titles.map((title) => title.name) || []\n                });\n            }\n            ref.child('expired_scopes').remove();\n            let accountId = yield ref.child('accountId').once('value');\n            return yield this.updateFlags(accountId.val());\n        });\n        this.updateFlags = (accountId) => tslib_1.__awaiter(this, void 0, void 0, function* () {\n            let hasError = false;\n            let characters = yield this.firebase.ref('characters')\n                .orderByChild('accountId')\n                .equalTo(accountId)\n                .once('value');\n            for (let character of characters) {\n                let error = !character.hasChild('sso');\n                if (error === true) {\n                    hasError = true;\n                }\n            }\n            if (hasError === false) {\n                return this.firebase.ref(`users/${accountId}`).update({\n                    errors: false\n                });\n            }\n            return;\n        });\n        this.esi = new node_esi_stackdriver_1.Esi(config_1.UserAgent, {\n            projectId: 'new-eden-storage-a5c23'\n        });\n    }\n}\nexports.default = CharacterHandlers;\n\n\n//# sourceURL=webpack:///./src/modules/character.ts?");
+
+/***/ }),
+
+/***/ "./src/modules/locations.ts":
+/*!**********************************!*\
+  !*** ./src/modules/locations.ts ***!
+  \**********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+eval("\nObject.defineProperty(exports, \"__esModule\", { value: true });\nclass LocationHandlers {\n    constructor(firebase) {\n        this.firebase = firebase;\n        this.onAffiliationsUpdate = (change, context) => {\n            return this.firebase.ref(`locations/${change.before.val()}/${context.params.userId}`)\n                .transaction(current => null);\n        };\n    }\n}\nexports.default = LocationHandlers;\n\n\n//# sourceURL=webpack:///./src/modules/locations.ts?");
+
+/***/ }),
+
+/***/ "./src/modules/statistics.ts":
+/*!***********************************!*\
+  !*** ./src/modules/statistics.ts ***!
+  \***********************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+eval("\nObject.defineProperty(exports, \"__esModule\", { value: true });\nconst node_esi_stackdriver_1 = __webpack_require__(/*! node-esi-stackdriver */ \"node-esi-stackdriver\");\nclass StatisticsHandlers {\n    constructor(firebase) {\n        this.firebase = firebase;\n        this.onNewAction = (snapshot, context) => {\n            const logging = new node_esi_stackdriver_1.Logger('functions', { projectId: 'new-eden-storage-a5c23' });\n            const action = snapshot.val();\n            return logging.log(node_esi_stackdriver_1.Severity.INFO, {}, action).then(() => {\n                return snapshot.ref.remove();\n            });\n        };\n    }\n}\nexports.default = StatisticsHandlers;\n\n\n//# sourceURL=webpack:///./src/modules/statistics.ts?");
+
+/***/ }),
+
+/***/ 0:
+/*!****************************!*\
+  !*** multi ./src/index.ts ***!
+  \****************************/
+/*! no static exports found */
+/***/ (function(module, exports, __webpack_require__) {
+
+eval("module.exports = __webpack_require__(/*! ./src/index.ts */\"./src/index.ts\");\n\n\n//# sourceURL=webpack:///multi_./src/index.ts?");
+
+/***/ }),
+
+/***/ "firebase-admin":
+/*!*********************************!*\
+  !*** external "firebase-admin" ***!
+  \*********************************/
+/*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = require("firebase-functions");
+eval("module.exports = require(\"firebase-admin\");\n\n//# sourceURL=webpack:///external_%22firebase-admin%22?");
 
 /***/ }),
-/* 1 */
-/***/ (function(module, exports, __webpack_require__) {
 
-__webpack_require__(2);
-__webpack_require__(3);
-module.exports = __webpack_require__(4);
-
-
-/***/ }),
-/* 2 */
+/***/ "firebase-functions":
+/*!*************************************!*\
+  !*** external "firebase-functions" ***!
+  \*************************************/
+/*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = require("babel-polyfill");
+eval("module.exports = require(\"firebase-functions\");\n\n//# sourceURL=webpack:///external_%22firebase-functions%22?");
 
 /***/ }),
-/* 3 */
+
+/***/ "node-esi-stackdriver":
+/*!***************************************!*\
+  !*** external "node-esi-stackdriver" ***!
+  \***************************************/
+/*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = require("isomorphic-fetch");
+eval("module.exports = require(\"node-esi-stackdriver\");\n\n//# sourceURL=webpack:///external_%22node-esi-stackdriver%22?");
 
 /***/ }),
-/* 4 */
-/***/ (function(module, exports, __webpack_require__) {
 
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const firebase_functions_1 = __webpack_require__(0);
-const firebase_admin_1 = __webpack_require__(5);
-const character_1 = __webpack_require__(6);
-const locations_1 = __webpack_require__(10);
-const storage_1 = __webpack_require__(11);
-const universe_1 = __webpack_require__(12);
-let firebase = firebase_admin_1.initializeApp(firebase_functions_1.config().firebase);
-let character = new character_1.default(firebase.database());
-let locations = new locations_1.default(firebase.database());
-let universe = new universe_1.default(firebase.database());
-let storage = new storage_1.default(firebase.storage());
-exports.onAllianceUpdate = firebase_functions_1.database.ref('characters/{userId}/allianceId')
-    .onUpdate(locations.onAffiliationsUpdate);
-exports.onCorpUpdate = firebase_functions_1.database.ref('characters/{userId}/corpId')
-    .onUpdate(locations.onAffiliationsUpdate);
-exports.onCharacterCreate = firebase_functions_1.database.ref('characters/{characterId}')
-    .onCreate(character.onNewCharacter);
-exports.onCharacterLogin = firebase_functions_1.database.ref('characters/{characterId}/sso')
-    .onCreate(character.onCharacterLogin);
-
-
-/***/ }),
-/* 5 */
+/***/ "tslib":
+/*!************************!*\
+  !*** external "tslib" ***!
+  \************************/
+/*! no static exports found */
 /***/ (function(module, exports) {
 
-module.exports = require("firebase-admin");
-
-/***/ }),
-/* 6 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const tslib_1 = __webpack_require__(7);
-const esi_1 = __webpack_require__(8);
-class CharacterHandlers {
-    constructor(firebase) {
-        this.firebase = firebase;
-        this.onNewCharacter = (event) => {
-            return this.populateCharacterInfo(event.params.characterId, event.data.current.child('sso/accessToken').val(), event.data.current.ref);
-        };
-        this.onCharacterLogin = (event) => {
-            return this.populateCharacterInfo(event.params.characterId, event.data.current.child('accessToken').val(), event.data.current.ref.parent);
-        };
-        this.populateCharacterInfo = (characterId, accessToken, ref) => tslib_1.__awaiter(this, void 0, void 0, function* () {
-            let responses = yield Promise.all([
-                esi_1.getCharacter(characterId),
-                esi_1.getRoles(characterId, accessToken),
-                esi_1.getTitles(characterId, accessToken)
-            ]);
-            yield ref.update({
-                corpId: responses[0].corporation_id,
-                allianceId: responses[0].alliance_id || null,
-                roles: responses[1] ? responses[1].roles || null : null,
-                titles: responses[2].reduce((result, current) => {
-                    result[current.title_id] = current.name;
-                    return result;
-                }, {})
-            });
-            ref.child('expired_scopes').remove();
-            let accountId = yield ref.child('accountId').once('value');
-            return yield this.updateFlags(accountId.val());
-        });
-        this.updateFlags = (accountId) => tslib_1.__awaiter(this, void 0, void 0, function* () {
-            let hasError = false;
-            let characters = yield this.firebase.ref('characters')
-                .orderByChild('accountId').equalTo(accountId).once('value');
-            characters.forEach((character) => {
-                let error = !character.hasChild('sso');
-                if (error === true) {
-                    hasError = true;
-                }
-            });
-            if (hasError === false) {
-                return this.firebase.ref(`users/${accountId}`).update({
-                    errors: false
-                });
-            }
-            return;
-        });
-    }
-}
-exports.default = CharacterHandlers;
-
-
-/***/ }),
-/* 7 */
-/***/ (function(module, __webpack_exports__, __webpack_require__) {
-
-"use strict";
-Object.defineProperty(__webpack_exports__, "__esModule", { value: true });
-/* harmony export (immutable) */ __webpack_exports__["__extends"] = __extends;
-/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "__assign", function() { return __assign; });
-/* harmony export (immutable) */ __webpack_exports__["__rest"] = __rest;
-/* harmony export (immutable) */ __webpack_exports__["__decorate"] = __decorate;
-/* harmony export (immutable) */ __webpack_exports__["__param"] = __param;
-/* harmony export (immutable) */ __webpack_exports__["__metadata"] = __metadata;
-/* harmony export (immutable) */ __webpack_exports__["__awaiter"] = __awaiter;
-/* harmony export (immutable) */ __webpack_exports__["__generator"] = __generator;
-/* harmony export (immutable) */ __webpack_exports__["__exportStar"] = __exportStar;
-/* harmony export (immutable) */ __webpack_exports__["__values"] = __values;
-/* harmony export (immutable) */ __webpack_exports__["__read"] = __read;
-/* harmony export (immutable) */ __webpack_exports__["__spread"] = __spread;
-/* harmony export (immutable) */ __webpack_exports__["__await"] = __await;
-/* harmony export (immutable) */ __webpack_exports__["__asyncGenerator"] = __asyncGenerator;
-/* harmony export (immutable) */ __webpack_exports__["__asyncDelegator"] = __asyncDelegator;
-/* harmony export (immutable) */ __webpack_exports__["__asyncValues"] = __asyncValues;
-/* harmony export (immutable) */ __webpack_exports__["__makeTemplateObject"] = __makeTemplateObject;
-/* harmony export (immutable) */ __webpack_exports__["__importStar"] = __importStar;
-/* harmony export (immutable) */ __webpack_exports__["__importDefault"] = __importDefault;
-/*! *****************************************************************************
-Copyright (c) Microsoft Corporation. All rights reserved.
-Licensed under the Apache License, Version 2.0 (the "License"); you may not use
-this file except in compliance with the License. You may obtain a copy of the
-License at http://www.apache.org/licenses/LICENSE-2.0
-
-THIS CODE IS PROVIDED ON AN *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
-WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
-MERCHANTABLITY OR NON-INFRINGEMENT.
-
-See the Apache Version 2.0 License for specific language governing permissions
-and limitations under the License.
-***************************************************************************** */
-/* global Reflect, Promise */
-
-var extendStatics = Object.setPrototypeOf ||
-    ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-    function (d, b) { for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p]; };
-
-function __extends(d, b) {
-    extendStatics(d, b);
-    function __() { this.constructor = d; }
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-}
-
-var __assign = Object.assign || function __assign(t) {
-    for (var s, i = 1, n = arguments.length; i < n; i++) {
-        s = arguments[i];
-        for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p)) t[p] = s[p];
-    }
-    return t;
-}
-
-function __rest(s, e) {
-    var t = {};
-    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
-        t[p] = s[p];
-    if (s != null && typeof Object.getOwnPropertySymbols === "function")
-        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) if (e.indexOf(p[i]) < 0)
-            t[p[i]] = s[p[i]];
-    return t;
-}
-
-function __decorate(decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-}
-
-function __param(paramIndex, decorator) {
-    return function (target, key) { decorator(target, key, paramIndex); }
-}
-
-function __metadata(metadataKey, metadataValue) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(metadataKey, metadataValue);
-}
-
-function __awaiter(thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-}
-
-function __generator(thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g;
-    return g = { next: verb(0), "throw": verb(1), "return": verb(2) }, typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
-    function verb(n) { return function (v) { return step([n, v]); }; }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
-            if (f = 1, y && (t = y[op[0] & 2 ? "return" : op[0] ? "throw" : "next"]) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [0, t.value];
-            switch (op[0]) {
-                case 0: case 1: t = op; break;
-                case 4: _.label++; return { value: op[1], done: false };
-                case 5: _.label++; y = op[1]; op = [0]; continue;
-                case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop(); continue;
-            }
-            op = body.call(thisArg, _);
-        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
-    }
-}
-
-function __exportStar(m, exports) {
-    for (var p in m) if (!exports.hasOwnProperty(p)) exports[p] = m[p];
-}
-
-function __values(o) {
-    var m = typeof Symbol === "function" && o[Symbol.iterator], i = 0;
-    if (m) return m.call(o);
-    return {
-        next: function () {
-            if (o && i >= o.length) o = void 0;
-            return { value: o && o[i++], done: !o };
-        }
-    };
-}
-
-function __read(o, n) {
-    var m = typeof Symbol === "function" && o[Symbol.iterator];
-    if (!m) return o;
-    var i = m.call(o), r, ar = [], e;
-    try {
-        while ((n === void 0 || n-- > 0) && !(r = i.next()).done) ar.push(r.value);
-    }
-    catch (error) { e = { error: error }; }
-    finally {
-        try {
-            if (r && !r.done && (m = i["return"])) m.call(i);
-        }
-        finally { if (e) throw e.error; }
-    }
-    return ar;
-}
-
-function __spread() {
-    for (var ar = [], i = 0; i < arguments.length; i++)
-        ar = ar.concat(__read(arguments[i]));
-    return ar;
-}
-
-function __await(v) {
-    return this instanceof __await ? (this.v = v, this) : new __await(v);
-}
-
-function __asyncGenerator(thisArg, _arguments, generator) {
-    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-    var g = generator.apply(thisArg, _arguments || []), i, q = [];
-    return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function () { return this; }, i;
-    function verb(n) { if (g[n]) i[n] = function (v) { return new Promise(function (a, b) { q.push([n, v, a, b]) > 1 || resume(n, v); }); }; }
-    function resume(n, v) { try { step(g[n](v)); } catch (e) { settle(q[0][3], e); } }
-    function step(r) { r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r);  }
-    function fulfill(value) { resume("next", value); }
-    function reject(value) { resume("throw", value); }
-    function settle(f, v) { if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]); }
-}
-
-function __asyncDelegator(o) {
-    var i, p;
-    return i = {}, verb("next"), verb("throw", function (e) { throw e; }), verb("return"), i[Symbol.iterator] = function () { return this; }, i;
-    function verb(n, f) { if (o[n]) i[n] = function (v) { return (p = !p) ? { value: __await(o[n](v)), done: n === "return" } : f ? f(v) : v; }; }
-}
-
-function __asyncValues(o) {
-    if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
-    var m = o[Symbol.asyncIterator];
-    return m ? m.call(o) : typeof __values === "function" ? __values(o) : o[Symbol.iterator]();
-}
-
-function __makeTemplateObject(cooked, raw) {
-    if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
-    return cooked;
-};
-
-function __importStar(mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (Object.hasOwnProperty.call(mod, k)) result[k] = mod[k];
-    result.default = mod;
-    return result;
-}
-
-function __importDefault(mod) {
-    return (mod && mod.__esModule) ? mod : { default: mod };
-}
-
-
-/***/ }),
-/* 8 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const config_1 = __webpack_require__(9);
-let headers = {
-    'Accept': 'application/json',
-    'User-Agent': config_1.UserAgent
-};
-exports.verifyResponse = (response) => {
-    if (response.status >= 200 && response.status <= 300) {
-        return response.json();
-    }
-    else if (response.bodyUsed) {
-        return response.json().then(error => {
-            return {
-                error: true,
-                body: response.body,
-                statusCode: response.status,
-                message: error,
-                url: response.url
-            };
-        });
-    }
-    else {
-        return new Promise((resolve) => {
-            resolve({
-                error: true,
-                statusCode: response.status,
-                uri: response.url
-            });
-        });
-    }
-};
-exports.getCharacter = (id) => {
-    return fetch(`https://esi.tech.ccp.is/latest/characters/${id}`, {
-        method: 'GET',
-        headers
-    }).then(exports.verifyResponse);
-};
-exports.getRoles = (id, accessToken) => {
-    return fetch(`https://esi.tech.ccp.is/v2/characters/${id}/roles/`, {
-        method: 'GET',
-        headers: Object.assign({ 'Authorization': `Bearer ${accessToken}` }, headers)
-    }).then(exports.verifyResponse);
-};
-exports.getTitles = (id, accessToken) => {
-    return fetch(`https://esi.tech.ccp.is/v1/characters/${id}/titles/`, {
-        method: 'GET',
-        headers: Object.assign({ 'Authorization': `Bearer ${accessToken}` }, headers)
-    }).then(exports.verifyResponse);
-};
-exports.getRoute = (origin, destination, flag) => {
-    return fetch(`https://esi.tech.ccp.is/latest/route/${origin}/${destination}/?flag=${flag}`, {
-        method: 'GET',
-        headers
-    }).then(exports.verifyResponse);
-};
-exports.setWaypoint = (character, location, setType) => {
-    return fetch(`https://esi.tech.ccp.is/latest/ui/autopilot/waypoint/?add_to_beginning=${setType.isFirst}&clear_other_waypoints=${setType.clear}&destination_id=${location.id}`, {
-        method: 'POST',
-        headers: Object.assign({ 'Authorization': `Bearer ${character.sso.accessToken}` }, headers)
-    });
-};
-
-
-/***/ }),
-/* 9 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.UserAgent = 'Account Management - Chingy Chonga/Jeremy Shore - w9jds@live.com';
-exports.AccountsOrigin = process.env.ACCOUNTS_ORIGIN;
-exports.EveScopes = [
-    'esi-ui.write_waypoint.v1',
-    'esi-skills.read_skills.v1',
-    'esi-characterstats.read.v1',
-    'esi-location.read_online.v1',
-    'esi-characters.read_titles.v1',
-    'esi-location.read_location.v1',
-    'esi-location.read_ship_type.v1',
-    'esi-characters.read_contacts.v1',
-    'esi-wallet.read_character_wallet.v1',
-    'esi-industry.read_character_mining.v1',
-    'esi-characters.read_corporation_roles.v1',
-    'esi-contracts.read_character_contracts.v1',
-    'esi-contracts.read_corporation_contracts.v1',
-];
-exports.DatabaseConfig = {
-    apiKey: process.env.DATABASE_API_KEY,
-    authDomain: process.env.DATABASE_AUTH_DOMAIN,
-    databaseURL: process.env.DATABASE_URL,
-    projectId: process.env.PROJECT_ID,
-    storageBucket: process.env.DATABASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.DATABASE_SENDER_ID
-};
-exports.RegisterClientId = process.env.REGISTER_CLIENT_ID;
-exports.RegisterSecret = process.env.REGISTER_SECRET;
-exports.RegisterRedirect = process.env.REGISTER_REDIRECT_URI;
-exports.LoginClientId = process.env.LOGIN_CLIENT_ID;
-exports.LoginSecret = process.env.LOGIN_SECRET;
-exports.LoginRedirect = process.env.LOGIN_REDIRECT_URI;
-exports.ForumClientId = process.env.FORUM_CLIENT_ID;
-exports.ForumSecret = process.env.FORUM_SECRET;
-exports.ForumRedirect = process.env.FORUM_REDIRECT_URI;
-exports.DiscordClientId = process.env.DISCORD_CLIENT_ID;
-exports.DiscordSecret = process.env.DISCORD_SECRET;
-exports.DiscordRedirect = process.env.DISCORD_REDIRECT_URI;
-
-
-/***/ }),
-/* 10 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-class LocationHandlers {
-    constructor(firebase) {
-        this.firebase = firebase;
-        this.onAffiliationsUpdate = (event) => {
-            return this.firebase.ref(`locations/${event.data.previous.val()}/${event.params.userId}`)
-                .transaction(current => null);
-        };
-    }
-}
-exports.default = LocationHandlers;
-
-
-/***/ }),
-/* 11 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-const functions = __webpack_require__(0);
-class StorageHandlers {
-    constructor(storage) {
-        this.storage = storage;
-        this.saveLocation = functions.storage.bucket('backgrounds').object().onChange((event) => {
-        });
-    }
-}
-exports.default = StorageHandlers;
-
-
-/***/ }),
-/* 12 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-class UniverseHandler {
-    constructor(firebase) {
-        this.firebase = firebase;
-    }
-}
-exports.default = UniverseHandler;
-
+eval("module.exports = require(\"tslib\");\n\n//# sourceURL=webpack:///external_%22tslib%22?");
 
 /***/ })
-/******/ ])));
+
+/******/ })));

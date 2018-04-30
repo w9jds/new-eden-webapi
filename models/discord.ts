@@ -12,7 +12,7 @@ export interface User {
     discriminator: string;
     avatar?: string;
     bot?: boolean;
-    mfa_enabled?: boolean; // whether the user has two factor enabled on their account
-    verified?: boolean; // whether the email on this account has been verified
-    email?: boolean; // the user's email
+    mfa_enabled?: boolean;
+    verified?: boolean;
+    email?: boolean;
 }

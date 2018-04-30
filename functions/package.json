@@ -6,22 +6,18 @@
   },
   "dependencies": {
     "@google-cloud/bigquery": "^1.1.0",
-    "babel-polyfill": "^6.26.0",
+    "@google-cloud/logging": "^1.2.0",
     "firebase-admin": "^5.11.0",
     "firebase-functions": "^1.0.0",
-    "isomorphic-fetch": "^2.2.1"
+    "node-esi-stackdriver": "^1.0.20",
+    "tslib": "^1.9.0"
   },
   "devDependencies": {
-    "@types/isomorphic-fetch": "^0.0.34",
     "@types/node": "^9.6.2",
-    "babel-core": "^6.26.0",
-    "babel-loader": "^7.1.2",
-    "babel-preset-env": "^1.6.1",
-    "ts-loader": "^4.1.0",
+    "ts-loader": "^4.2.0",
     "typescript": "^2.8.1",
-    "webpack": "^3.10.0",
-    "webpack-dev-middleware": "^2.0.4",
-    "webpack-hot-middleware": "^2.21.0",
+    "webpack": "^4.5.0",
+    "webpack-cli": "^2.0.14",
     "webpack-node-externals": "^1.6.0"
   },
   "private": true

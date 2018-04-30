@@ -1,8 +1,8 @@
 import { Request, ResponseToolkit, ResponseObject } from 'hapi';
 import { badRequest, internal } from 'boom';
 import { database } from 'firebase-admin';
-import { setWaypoint, getRoute } from '../lib/esi';
-import { Character } from '../models/character';
+import { Esi } from 'node-esi-stackdriver';
+import { Character } from 'node-esi-stackdriver'
 import { PostBody } from '../models/routes';
 
 interface RoutesPayload {
@@ -13,13 +13,13 @@ interface RoutesPayload {
 
 export default class Api {
 
-    constructor(private firebase: database.Database) { }
+    constructor(private firebase: database.Database, private esi: Esi) { }
 
     public waypointHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
         let body = request.payload as PostBody;
         let credentials = request.auth.credentials as Character;
     
-        let response = await setWaypoint(credentials, body.location, body.setType);
+        let response = await this.esi.setWaypoint(credentials, body.location, body.setType);
         if (response.status === 204) {
             return h.response().code(204);
         }
@@ -43,7 +43,7 @@ export default class Api {
         try {
             if (body.start && body.end) {
                 let routes = await Promise.all(
-                    body.start.map((start: string | number) => getRoute(start, body.end, body.type))
+                    body.start.map((start: string | number) => this.esi.getRoute(start, body.end, body.type))
                 );
 
                 routes.forEach((route: any[], index: number) => {

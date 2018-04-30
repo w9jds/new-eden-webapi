@@ -9,13 +9,17 @@ import Discourse from './endpoints/discourse';
 import Discord from './endpoints/discord';
 import Api from './endpoints/api';
 
-import { DatabaseConfig, AccountsOrigin } from './config/config';
+import { DatabaseConfig, AccountsOrigin, UserAgent } from './config/config';
 import { Payload } from './models/payload';
-import { Character } from './models/character';
+import { Character, Esi } from 'node-esi-stackdriver';
 
-let firebase = admin.initializeApp({
+const firebase = admin.initializeApp({
     credential: admin.credential.cert(cert as admin.ServiceAccount),
     databaseURL: DatabaseConfig.databaseURL
+});
+
+const esi: Esi = new Esi(UserAgent, {
+    projectId: 'new-eden-storage-a5c23'
 });
 
 const server: Server = new Server({
@@ -139,7 +143,7 @@ const init = async (): Promise<Server> => {
 }
 
 const createApiRoutes = () => {
-    let api = new Api(firebase.database());
+    let api = new Api(firebase.database(), esi);
 
     server.auth.scheme('firebase', firebaseScheme);
     server.auth.strategy('firebase-auth', 'firebase');
@@ -282,7 +286,7 @@ const createAuthRoutes = () => {
 }
 
 const createDiscourseRoutes = () => {
-    let discourse = new Discourse();
+    let discourse = new Discourse(esi);
 
     server.route({
         method: 'GET',

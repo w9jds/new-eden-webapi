@@ -1,4 +1,4 @@
-import { Character } from "./character";
+import { Character } from "node-esi-stackdriver";
 
 export interface Profile {
     id: number;

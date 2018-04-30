@@ -4,19 +4,21 @@ export const UserAgent = 'Account Management - Chingy Chonga/Jeremy Shore - w9jd
 export const AccountsOrigin = process.env.ACCOUNTS_ORIGIN;
 
 export const EveScopes = [
-    'esi-ui.write_waypoint.v1',
-    'esi-skills.read_skills.v1',
-    'esi-characterstats.read.v1',
-    'esi-location.read_online.v1',
-    'esi-characters.read_titles.v1',
     'esi-location.read_location.v1',
     'esi-location.read_ship_type.v1',
-    'esi-characters.read_contacts.v1',
+    'esi-skills.read_skills.v1',
     'esi-wallet.read_character_wallet.v1',
-    'esi-industry.read_character_mining.v1',
+    'esi-characters.read_contacts.v1',
+    'esi-corporations.read_corporation_membership.v1',
+    'esi-ui.write_waypoint.v1',
     'esi-characters.read_corporation_roles.v1',
-    'esi-contracts.read_character_contracts.v1',
+    'esi-location.read_online.v1',
+    'esi-corporations.read_titles.v1',
     'esi-contracts.read_corporation_contracts.v1',
+    'esi-industry.read_character_mining.v1',
+    'esi-characters.read_titles.v1',
+    'esi-characterstats.read.v1',
+    'esi-contracts.read_character_contracts.v1'
 ];
 
 export const DatabaseConfig = {

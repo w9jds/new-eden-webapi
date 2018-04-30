@@ -1,5 +1,7 @@
 import {database, config} from 'firebase-functions';
 import {initializeApp} from 'firebase-admin';
+import {Logger} from 'node-esi-stackdriver';
+
 import CharacterHandlers from './modules/character';
 import LocationHandlers from './modules/locations';
 import StatisticsHandlers from './modules/statistics';
