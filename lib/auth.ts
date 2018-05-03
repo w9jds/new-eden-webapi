@@ -26,8 +26,8 @@ const verifyResponse = async (method: string, response: Response): Promise<any |
     }
 }
 
-export const login = (code: string, clientId: string, secret: string): Promise<any> => {
-    return fetch('https://login.eveonline.com/oauth/token', {
+export const login = async (code: string, clientId: string, secret: string): Promise<any | ErrorResponse> => {
+    const response = await fetch('https://login.eveonline.com/oauth/token', {
         method: 'POST',
         headers: {
             'Authorization': 'Basic ' + new Buffer(clientId + ':' + secret).toString('base64'),
@@ -36,7 +36,9 @@ export const login = (code: string, clientId: string, secret: string): Promise<a
             ...headers
         },
         body: `grant_type=authorization_code&code=${code}`
-    }).then(verifyResponse);
+    });
+    
+    return verifyResponse('POST', response);
 }
 
 export const verify = (type: string, token: string): Promise<any> => {

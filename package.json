@@ -18,7 +18,7 @@
     "hapi": "^17.4.0",
     "jsonwebtoken": "^8.2.1",
     "moment": "^2.22.0",
-    "node-esi-stackdriver": "^1.0.23",
+    "node-esi-stackdriver": "^1.0.24",
     "node-fetch": "^2.1.2",
     "query-string": "^6.0.0"
   },

@@ -1,14 +1,18 @@
 import { Request, ResponseToolkit, ResponseObject } from 'hapi';
 import { badRequest, internal } from 'boom';
 import { database } from 'firebase-admin';
-import { Esi } from 'node-esi-stackdriver';
-import { Character } from 'node-esi-stackdriver'
+import { Esi, ErrorResponse, Reference } from 'node-esi-stackdriver';
+import { Character, Order } from 'node-esi-stackdriver'
 import { PostBody } from '../models/routes';
 
 interface RoutesPayload {
     end: string | number,
     start: any[],
     type: string
+}
+
+interface MarketOrder extends Order {
+    system_name?: string;
 }
 
 export default class Api {
@@ -25,15 +29,6 @@ export default class Api {
         }
 
         throw badRequest();
-    }
-
-    public loggingHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
-        let log = request.payload;
-        let credentials = request.auth.credentials as Character;
-
-        
-
-        return h.response().code(204);
     }
 
     public routesHandler = async (request: Request, h: ResponseToolkit) => {
@@ -86,5 +81,46 @@ export default class Api {
         catch(error) {
             return internal();
         }
+    }
+
+    public regionOrdersHandler = async (request: Request, h: ResponseToolkit) => {
+        const response = await this.esi.getRegionOrders(request.params.regionId, request.params.typeId);
+
+        if (response instanceof Array) {
+            let orders = await this.populateSystemNames(response);
+            return h.response(orders);
+        }
+        
+        throw badRequest('ErrorResponse', response);
+    }
+
+    private populateSystemNames = async (orders: MarketOrder[]): Promise<MarketOrder[] | ErrorResponse> => {
+        let ids: number[] = [];
+
+        for (let order of orders) {
+            if (ids.indexOf(order.system_id) < 0) {
+                ids.push(order.system_id);
+            }
+        }
+
+        const names = await this.esi.getNames(ids);
+
+        if (names instanceof Array) {
+            let map = names.reduce((end, name: Reference) => {return end[name.id] = name, end}, {});
+
+            for (let order of orders) {
+                if (map[order.system_id]) {
+                    order.system_name = map[order.system_id].name;
+                }
+            }
+
+            return orders;
+        }
+
+        throw badRequest('ErrorResponse', names);
+    }
+
+    public characterOverviewHandler = async (request: Request, h: ResponseToolkit) => {
+
     }
 }

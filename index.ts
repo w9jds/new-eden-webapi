@@ -107,18 +107,7 @@ const init = async (): Promise<Server> => {
             auth: false
         },
         handler: (request: Request, h) => {
-            return h.response({
-                endpoints: [
-                    '/auth/login',
-                    '/auth/logout',
-                    '/auth/register',
-                    '/auth/updateScopes',
-                    '/auth/addCharacter',
-                    '/auth/verify/{userId*}',
-                    '/discourse/login',
-                    '/discord/login'
-                ]
-            });
+            return h.response(server.table().map(row => row.path));
         }
     });
 
@@ -158,6 +147,22 @@ const createApiRoutes = () => {
                 parse: true,
                 failAction: 'error'
             },
+            cors: {
+                origin: ['*'],
+                additionalHeaders: [
+                    'authorization',
+                    'content-type'
+                ]
+            }
+        }
+    });
+
+    server.route({
+        method: 'GET',
+        path: '/market/{regionId}/orders/{typeId*}',
+        handler: api.regionOrdersHandler,
+        options: {
+            auth: false,
             cors: {
                 origin: ['*'],
                 additionalHeaders: [

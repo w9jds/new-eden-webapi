@@ -99,10 +99,10 @@ export default class Authentication {
 
     public loginHandler = (request: Request, h: ResponseToolkit) => {
         if (!request.query['redirect_to']) {
-            throw badRequest('Invalid Request, redirect_to parameter is required.');
+            throw badRequest('Invalid Request', 'redirect_to parameter is required.');
         }
         if (!request.query['response_type'] && request.query['response_type'] != 'none' && request.query['response_type'] != 'token' && request.query['response_type'] != 'persistant' && request.query['response_type'] != 'session') {
-            throw badRequest('Invalid Request, valid type parameter is required.');
+            throw badRequest('Invalid Request', 'valid type parameter is required.');
         }
 
         let cipherText = encryptState({
@@ -357,7 +357,7 @@ export default class Authentication {
         }
         if (type == 'persistant') {
             h.state('profile_jwt', token, {
-                domain: 'new-eden.io', 
+                domain: process.env.NODE_ENV !== 'production' ? 'localhost' : 'new-eden.io',
                 path: '/',
                 ttl: 1000 * 60 * 60 * 24 * 365 * 10
             });
@@ -365,7 +365,7 @@ export default class Authentication {
         }
         if (type == 'session') {
             h.state('profile_jwt', token, {
-                domain: 'new-eden.io',
+                domain: process.env.NODE_ENV !== 'production' ? 'localhost' : 'new-eden.io',
                 path: '/'
             });
             return h.redirect(`${uri}`);
