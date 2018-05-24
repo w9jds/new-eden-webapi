@@ -6,19 +6,22 @@
   },
   "dependencies": {
     "@google-cloud/bigquery": "^1.1.0",
-    "@google-cloud/logging": "^1.2.0",
-    "firebase-admin": "^5.11.0",
-    "firebase-functions": "^1.0.0",
-    "node-esi-stackdriver": "^1.0.20",
+    "bluebird": "^3.5.1",
+    "firebase-admin": "^5.12.1",
+    "firebase-functions": "^1.0.3",
+    "node-esi-stackdriver": "^1.0.25",
+    "node-fetch": "^2.1.2",
     "tslib": "^1.9.0"
   },
   "devDependencies": {
-    "@types/node": "^9.6.2",
-    "ts-loader": "^4.2.0",
-    "typescript": "^2.8.1",
-    "webpack": "^4.5.0",
-    "webpack-cli": "^2.0.14",
-    "webpack-node-externals": "^1.6.0"
+    "@types/bluebird": "^3.5.20",
+    "@types/node": "^9.6.18",
+    "@types/node-fetch": "^1.6.9",
+    "ts-loader": "^4.3.0",
+    "typescript": "^2.8.3",
+    "webpack": "^4.8.3",
+    "webpack-cli": "^2.1.4",
+    "webpack-node-externals": "^1.7.2"
   },
   "private": true
 }

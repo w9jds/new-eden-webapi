@@ -357,7 +357,7 @@ export default class Authentication {
         }
         if (type == 'persistant') {
             h.state('profile_jwt', token, {
-                domain: process.env.NODE_ENV !== 'production' ? 'localhost' : 'new-eden.io',
+                domain: 'new-eden.io',
                 path: '/',
                 ttl: 1000 * 60 * 60 * 24 * 365 * 10
             });
@@ -365,7 +365,7 @@ export default class Authentication {
         }
         if (type == 'session') {
             h.state('profile_jwt', token, {
-                domain: process.env.NODE_ENV !== 'production' ? 'localhost' : 'new-eden.io',
+                domain: 'new-eden.io',
                 path: '/'
             });
             return h.redirect(`${uri}`);
