@@ -1,8 +1,7 @@
+import {DiscordBaseUri} from '../config/config';
+import {ErrorResponse} from 'node-esi-stackdriver';
 import fetch, { Response, Headers } from 'node-fetch';
-
-import { ErrorResponse } from 'node-esi-stackdriver';
-import { GuildMember, PatchGuildMember, GuildRole, Guild, AddGuildMember } from '../models/Discord';
-import { UserAgent, DiscordBaseUri } from '../config/config';
+import {GuildMember, PatchGuildMember, GuildRole, Guild, AddGuildMember} from '../models/Discord';
 
 export default class DiscordApi {
 
@@ -20,13 +19,11 @@ export default class DiscordApi {
 
         if (response.status >= 200 && response.status < 300) {
             if (response.status == 204) {
-                
                 return;
             }
 
             return await response.json() as T;
         }
-
         
         console.log(await response.text());
 

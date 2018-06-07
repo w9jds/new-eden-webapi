@@ -1,7 +1,6 @@
 import * as admin from 'firebase-admin';
-import * as jwt from 'jsonwebtoken';
 import * as cert from './config/neweden-admin.json';
-import { Server, Request, ResponseToolkit, ServerAuthSchemeOptions } from 'hapi';
+import { Server, Request, ResponseToolkit, ServerAuthSchemeOptions, RouteOptions } from 'hapi';
 import { unauthorized } from 'boom';
 
 import Authentication, {verifyJwt} from './endpoints/auth';
@@ -26,6 +25,23 @@ const server: Server = new Server({
     port: process.env.PORT || 8000,
     host: '0.0.0.0'
 });
+
+const acceptCors: RouteOptions = {
+    cors: {
+        origin: ['*'],
+        additionalHeaders: [
+            'authorization',
+            'content-type'
+        ]
+    }
+};
+
+const parseState: RouteOptions = {
+    state: {
+        parse: true,
+        failAction: 'error'
+    }
+}
 
 const firebaseScheme = (server: Server, options: ServerAuthSchemeOptions) => {
     return {
@@ -143,17 +159,41 @@ const createApiRoutes = () => {
         handler: api.waypointHandler,
         options: {
             auth: 'firebase-auth',
-            state: {
-                parse: true,
-                failAction: 'error'
-            },
-            cors: {
-                origin: ['*'],
-                additionalHeaders: [
-                    'authorization',
-                    'content-type'
-                ]
-            }
+            ...parseState,
+            ...acceptCors
+        }
+    });
+
+    server.route({
+        method: 'GET',
+        path: '/character/{userId*}/mail',
+        handler: {},
+        options: {
+            auth: 'firebase-auth',
+            ...parseState,
+            ...acceptCors
+        }
+    });
+
+    server.route({
+        method: 'GET',
+        path: '/character/{userId*}/wallet',
+        handler: {},
+        options: {
+            auth: 'firebase-auth',
+            ...parseState,
+            ...acceptCors
+        }
+    });
+
+    server.route({
+        method: 'GET',
+        path: '/character/{userId*}/skills',
+        handler: {},
+        options: {
+            auth: 'firebase-auth',
+            ...parseState,
+            ...acceptCors
         }
     });
 
@@ -163,13 +203,7 @@ const createApiRoutes = () => {
         handler: api.regionOrdersHandler,
         options: {
             auth: false,
-            cors: {
-                origin: ['*'],
-                additionalHeaders: [
-                    'authorization',
-                    'content-type'
-                ]
-            }
+            ...acceptCors
         }
     });
 
@@ -179,13 +213,7 @@ const createApiRoutes = () => {
         handler: api.routesHandler,
         options: {
             auth: false,
-            cors: {
-                origin: ['*'],
-                additionalHeaders: [
-                    'authorization',
-                    'content-type'
-                ]
-            }
+            ...acceptCors
         }
     });
 }
@@ -210,11 +238,8 @@ const createAuthRoutes = () => {
         path: '/auth/logout',
         options: {
             auth: 'jwt-auth',
-            state: {
-                parse: true,
-                failAction: 'error'
-            },
-            handler: authentication.logoutHandler
+            handler: authentication.logoutHandler,
+            ...parseState
         }
     })
 
@@ -232,11 +257,8 @@ const createAuthRoutes = () => {
         path: '/auth/updateScopes',
         options: {
             auth: 'jwt-auth',
-            state: {
-                parse: true,
-                failAction: 'error'
-            },
-            handler: authentication.modifyScopesHandler
+            handler: authentication.modifyScopesHandler,
+            ...parseState
         }
     });
 
@@ -245,11 +267,8 @@ const createAuthRoutes = () => {
         path: '/auth/addCharacter',
         options: {
             auth: 'jwt-auth',
-            state: {
-                parse: true,
-                failAction: 'error'
-            },
-            handler: authentication.addCharacterHandler
+            handler: authentication.addCharacterHandler,
+            ...parseState
         }
     });
 
@@ -259,15 +278,8 @@ const createAuthRoutes = () => {
         handler: authentication.verifyHandler,
         options: {
             auth: 'jwt-auth',
-            state: {
-                parse: true,
-                failAction: 'ignore'
-            },
-            cors: {
-                origin: ['*'],
-                credentials: true,
-                additionalHeaders: ['authorization']
-            }
+            ...parseState,
+            ...acceptCors
         }
     });
 
@@ -321,10 +333,7 @@ const createDiscordRoutes = () => {
         handler: discord.loginHandler,
         options: {
             auth: 'jwt-auth',
-            state: {
-                parse: true,
-                failAction: 'error'
-            }
+            ...parseState
         }
     });
 

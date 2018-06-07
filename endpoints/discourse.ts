@@ -1,10 +1,9 @@
-import * as moment from 'moment';
 import * as CryptoJs from 'crypto-js';
 import {verify as Verify, sign} from 'jsonwebtoken';
 import * as queryString from 'query-string';
 
 import { ResponseObject } from 'hapi';
-import { internal, unauthorized } from 'boom';
+import { unauthorized } from 'boom';
 import { login, verify } from '../lib/auth';
 import { Esi } from 'node-esi-stackdriver';
 import { ForumClientId, ForumSecret, ForumRedirect } from '../config/config';

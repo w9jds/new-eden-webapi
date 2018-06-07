@@ -16,7 +16,7 @@ export default class CharacterHandlers {
 
     public onNewCharacter = (snapshot: database.DataSnapshot, context?: EventContext) => {
         return this.populateCharacterInfo(context.params.characterId, snapshot.child('sso/accessToken').val(), snapshot.ref);
-    };
+    }
 
     public onCharacterLogin = (snapshot: database.DataSnapshot, context?: EventContext) => {
         return this.populateCharacterInfo(context.params.characterId, snapshot.child('accessToken').val(), snapshot.ref.parent);
@@ -52,7 +52,7 @@ export default class CharacterHandlers {
             });
         }
 
-        ref.child('expired_scopes').remove();
+        await ref.child('expired_scopes').remove();
         let accountId: admin.database.DataSnapshot = await ref.child('accountId').once('value');
         return await this.updateFlags(accountId.val());
     }

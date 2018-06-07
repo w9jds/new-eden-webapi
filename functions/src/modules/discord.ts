@@ -45,7 +45,7 @@ export default class DiscordHandlers {
     private getAccount = (accountId: string | number): Promise<Account> => {
         return this.getFirebaseObject<Account>(this.firebase.ref(`users/${accountId}`));
     }
-    
+
     private getCharacter = (characterId: string | number): Promise<Character> => {
         return this.getFirebaseObject<Character>(this.firebase.ref(`characters/${characterId}`));
     }
@@ -58,7 +58,7 @@ export default class DiscordHandlers {
     private getGuilds = (): Promise<FirebaseGuild[]> => {
         return this.getFirebaseObjects(this.firebase.ref('guilds'));
     }
-        
+
     private getDiscordAccount = async (accountId: string | number): Promise<DiscordAccount> => {
         let matches = await this.getFirebaseObjects<DiscordAccount>(this.firebase.ref('discord').orderByChild('accountId').equalTo(accountId));
         return matches[0];
@@ -81,7 +81,7 @@ export default class DiscordHandlers {
         }
         if (isMember) {
             for (let role of roles) {
-                if (role.name == 'Member' || character.titles.indexOf(role.name) > -1) {
+                if (role.name == 'Member' || (character.titles && character.titles.indexOf(role.name) > -1)) {
                     ids.push(role.id);
                 }
             }
@@ -89,15 +89,20 @@ export default class DiscordHandlers {
 
         return ids;
     }
-    
-    private updateRoles = async (context?: EventContext): Promise<any> => {
-        let character: Character = await this.getCharacter(context.params.userId);
+
+    private updateRolesFromId = async (userId: any): Promise<any> => {
+        let character: Character = await this.getCharacter(userId);
         let account: DiscordAccount = await this.getDiscordAccount(character.accountId);
+
+        return this.updateRoles(character, account);
+    }
+
+    private updateRoles = async (character: Character, account: DiscordAccount): Promise<any> => {
         let guilds: FirebaseGuild[] = await this.getGuilds();
 
         if (account && guilds) {
             let patches = [];
-            
+
             for (let guild of guilds) {
                 let user: GuildMember | ErrorResponse = await this.api.getGuildMember(guild.id, account.id);
 
@@ -140,25 +145,31 @@ export default class DiscordHandlers {
                     });
                 }
             }
+            else {
+                return Promise.all([
+                    this.api.updateGuildMember(guild.id, discordAccount.id, { nick: character.name }),
+                    this.updateRoles(character, discordAccount)
+                ]);
+            }
         }
 
         return;
     }
 
     public onAllianceUpdate = (change: Change<database.DataSnapshot>, context?: EventContext) => {
-        return this.updateRoles(context);
+        return this.updateRolesFromId(context.params.userId);
     }
 
     public onCorpUpdate = (change: Change<database.DataSnapshot>, context?: EventContext) => {
-        return this.updateRoles(context);
+        return this.updateRolesFromId(context.params.userId);
     }
 
     public onTitlesUpdate = (change: Change<database.DataSnapshot>, context?: EventContext) => {
-        return this.updateRoles(context);
+        return this.updateRolesFromId(context.params.userId);
     }
 
     public onTitlesCreate = (snapshot: database.DataSnapshot, context?: EventContext) => {
-        return this.updateRoles(context);
+        return this.updateRolesFromId(context.params.userId);
     }
 
     public onMainCharacterUpdated = async (change: Change<database.DataSnapshot>, context?: EventContext) => {

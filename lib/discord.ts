@@ -1,5 +1,5 @@
-import { DiscordClientId, DiscordSecret, DiscordRedirect } from '../config/config';
-import { Tokens, User } from '../models/discord';
+import {DiscordClientId, DiscordSecret, DiscordRedirect} from '../config/config';
+import {Tokens, User} from '../models/discord';
 import fetch, {Response} from 'node-fetch';
 
 export const validate = async (code: string): Promise<Tokens> => {

@@ -15,7 +15,6 @@ let character = new CharacterHandlers(realtime);
 let locations = new LocationHandlers(realtime);
 let statistics = new StatisticsHandlers(realtime);
 
-
 /**
  * Database Data Updates
  */

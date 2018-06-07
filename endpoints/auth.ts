@@ -10,7 +10,6 @@ import { Request, ResponseToolkit, ResponseObject } from 'hapi';
 import { badRequest, unauthorized } from 'boom';
 import { login, verify } from '../lib/auth';
 import { Character, Permissions } from 'node-esi-stackdriver';
-import { Profile } from '../models/profile';
 import { Payload, State } from '../models/payload';
 import { revoke } from '../lib/auth';
 import { AccountsOrigin, RegisterRedirect, RegisterClientId,
