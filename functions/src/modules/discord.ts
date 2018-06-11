@@ -1,6 +1,5 @@
 import {database, Change, EventContext} from 'firebase-functions';
-import {Esi, Character, Reference, ErrorResponse} from 'node-esi-stackdriver';
-import fetch, {Response} from 'node-fetch';
+import {Esi, Character, ErrorResponse} from 'node-esi-stackdriver';
 import * as admin from 'firebase-admin';
 import * as bluebird from 'bluebird';
 
@@ -92,9 +91,12 @@ export default class DiscordHandlers {
 
     private updateRolesFromId = async (userId: any): Promise<any> => {
         let character: Character = await this.getCharacter(userId);
+        let profile: Account = await this.getAccount(character.accountId);
         let account: DiscordAccount = await this.getDiscordAccount(character.accountId);
 
-        return this.updateRoles(character, account);
+        if (profile.mainId == character.id) {
+            return this.updateRoles(character, account);
+        }
     }
 
     private updateRoles = async (character: Character, account: DiscordAccount): Promise<any> => {
@@ -181,13 +183,10 @@ export default class DiscordHandlers {
             let patches = [];
 
             for (let guild of guilds) {
-                // let user: GuildMember | ErrorResponse = await this.api.getGuildMember(guild.id, account.id);
-
-                // if ('joined_at' in user) {
-                    patches.push(this.api.updateGuildMember(guild.id, account.id, {
-                        nick: character.name
-                    }));
-                // }
+                patches.push(this.updateRoles(character, account));
+                patches.push(this.api.updateGuildMember(guild.id, account.id, {
+                    nick: character.name
+                }));
             }
 
             return bluebird.map(patches, item => item, { concurrency: 300 });
