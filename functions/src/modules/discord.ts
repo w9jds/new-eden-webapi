@@ -134,7 +134,7 @@ export default class DiscordHandlers {
         let guild: FirebaseGuild = await this.getGuild(character.corpId);
 
         if (account && character && guild) {
-            let user: GuildMember | ErrorResponse = await this.api.getGuildMember(guild.id, account.id);
+            let user: GuildMember | ErrorResponse = await this.api.getGuildMember(guild.id, discordAccount.id);
 
             if ('error' in user) {
                 let roles: GuildRole[] | ErrorResponse = await this.api.getGuildRoles(guild.id);
@@ -158,19 +158,19 @@ export default class DiscordHandlers {
         return;
     }
 
-    public onAllianceUpdate = (change: Change<database.DataSnapshot>, context?: EventContext) => {
+    public onAllianceUpdate = (_change: Change<database.DataSnapshot>, context?: EventContext) => {
         return this.updateRolesFromId(context.params.userId);
     }
 
-    public onCorpUpdate = (change: Change<database.DataSnapshot>, context?: EventContext) => {
+    public onCorpUpdate = (_change: Change<database.DataSnapshot>, context?: EventContext) => {
         return this.updateRolesFromId(context.params.userId);
     }
 
-    public onTitlesUpdate = (change: Change<database.DataSnapshot>, context?: EventContext) => {
+    public onTitlesUpdate = (_change: Change<database.DataSnapshot>, context?: EventContext) => {
         return this.updateRolesFromId(context.params.userId);
     }
 
-    public onTitlesCreate = (snapshot: database.DataSnapshot, context?: EventContext) => {
+    public onTitlesCreate = (_snapshot: database.DataSnapshot, context?: EventContext) => {
         return this.updateRolesFromId(context.params.userId);
     }
 

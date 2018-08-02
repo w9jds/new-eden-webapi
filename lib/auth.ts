@@ -37,7 +37,7 @@ export const login = async (code: string, clientId: string, secret: string): Pro
         },
         body: `grant_type=authorization_code&code=${code}`
     });
-    
+
     return verifyResponse('POST', response);
 }
 
@@ -71,8 +71,8 @@ export const refresh = async (refreshToken: string, clientId: string, secret: st
     });
 }
 
-export async function revoke(accessToken: string, clientId: string, secret: string): Promise<any> {
-    let response = await fetch(`https://login.eveonline.com/oauth/revoke?token_type_hint=access_token&token=${accessToken}`, {
+export const revoke = async (accessToken: string, clientId: string, secret: string): Promise<any> => {
+    return await fetch(`https://login.eveonline.com/oauth/revoke?token_type_hint=access_token&token=${accessToken}`, {
         method: 'POST',
         headers: {
             'Authorization': `Basic ${new Buffer(clientId + ':' + secret).toString('base64')}`,
