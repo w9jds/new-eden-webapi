@@ -18,8 +18,8 @@
     "hapi": "^17.4.0",
     "jsonwebtoken": "^8.2.1",
     "moment": "^2.22.0",
-    "node-esi-stackdriver": "^1.0.24",
-    "node-fetch": "^2.1.2",
+    "node-esi-stackdriver": "^1.0.27",
+    "node-fetch": "^2.2.0",
     "query-string": "^6.0.0"
   },
   "devDependencies": {
@@ -28,7 +28,7 @@
     "@types/hapi": "^17.0.11",
     "@types/jsonwebtoken": "^7.2.6",
     "@types/node": "^10.0.0",
-    "@types/node-fetch": "^1.6.9",
+    "@types/node-fetch": "^2.1.2",
     "ts-loader": "^4.2.0",
     "tslint": "^5.9.1",
     "typescript": "^2.8.1",

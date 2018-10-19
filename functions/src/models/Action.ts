@@ -1,7 +1,7 @@
-import {Map} from '../models/Map';
-import {User} from '../models/User';
-import {System} from '../models/System';
-import {Signature} from '../models/Signature';
+import { Map } from '../models/Map';
+import { User } from '../models/User';
+import { System } from '../models/System';
+import { Signature } from '../models/Signature';
 
 export interface Action {
     action: string;

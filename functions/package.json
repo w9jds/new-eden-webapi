@@ -1,27 +1,28 @@
 {
   "name": "functions",
-  "description": "Cloud Functions for Firebase",
   "scripts": {
-    "build": "webpack --verbose --colors"
+    "lint": "tslint --project tsconfig.json",
+    "build": "tsc",
+    "serve": "npm run build && firebase serve --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
   },
+  "main": "lib/index.js",
   "dependencies": {
-    "@google-cloud/bigquery": "^1.1.0",
-    "bluebird": "^3.5.1",
-    "firebase-admin": "^5.12.1",
-    "firebase-functions": "^1.0.3",
-    "node-esi-stackdriver": "^1.0.25",
-    "node-fetch": "^2.1.2",
-    "tslib": "^1.9.0"
+    "bluebird": "^3.5.2",
+    "firebase-admin": "~6.0.0",
+    "firebase-functions": "^2.0.3",
+    "node-esi-stackdriver": "^1.0.27",
+    "node-fetch": "^2.2.0",
+    "tslib": "^1.9.3"
   },
   "devDependencies": {
-    "@types/bluebird": "^3.5.20",
-    "@types/node": "^9.6.18",
-    "@types/node-fetch": "^1.6.9",
-    "ts-loader": "^4.3.0",
-    "typescript": "^2.8.3",
-    "webpack": "^4.8.3",
-    "webpack-cli": "^2.1.4",
-    "webpack-node-externals": "^1.7.2"
+    "@types/bluebird": "^3.5.24",
+    "@types/node-fetch": "^2.1.2",
+    "tslint": "~5.8.0",
+    "typescript": "~2.8.3"
   },
   "private": true
 }

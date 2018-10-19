@@ -1,4 +1,4 @@
-import {DiscordBaseUri} from '../config/config';
+import { DiscordBaseUri } from '../config/config';
 import {ErrorResponse} from 'node-esi-stackdriver';
 import fetch, { Response, Headers } from 'node-fetch';
 import {GuildMember, PatchGuildMember, GuildRole, Guild, AddGuildMember} from '../models/Discord';
@@ -15,16 +15,16 @@ export default class DiscordApi {
     }
 
     private request = async <T>(url: string, options): Promise<T | ErrorResponse> => {
-        let response: Response = await fetch(url, options);
+        const response: Response = await fetch(url, options);
 
         if (response.status >= 200 && response.status < 300) {
-            if (response.status == 204) {
-                return;
+            if (response.status === 204) {
+                return null;
             }
 
             return await response.json() as T;
         }
-        
+
         console.log(await response.text());
 
         return {
@@ -51,7 +51,7 @@ export default class DiscordApi {
             method: 'GET',
             headers: this.headers
         })
-    
+
     public updateGuildMember = async (guildId: number | string, userId: number | string, patch: PatchGuildMember): Promise<boolean|ErrorResponse> =>
         this.request<boolean>(`${DiscordBaseUri}/guilds/${guildId}/members/${userId}`, {
             method: 'PATCH',
@@ -62,7 +62,7 @@ export default class DiscordApi {
             body: JSON.stringify(patch)
         })
 
-    public getBotGuilds = async (): Promise<Guild[]|ErrorResponse> => 
+    public getBotGuilds = async (): Promise<Guild[]|ErrorResponse> =>
         this.request<Guild[]>(`${DiscordBaseUri}/users/@me/guilds`, {
             method: 'GET',
             headers: this.headers

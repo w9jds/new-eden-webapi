@@ -1,6 +1,5 @@
 import {database, EventContext} from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import * as bigquery from '@google-cloud/bigquery';
 
 import {Action} from '../models/Action';
 import {Logger, Severity} from 'node-esi-stackdriver';
