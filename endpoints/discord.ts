@@ -1,12 +1,11 @@
 import * as moment from 'moment';
 import { database } from 'firebase-admin';
 import { Request, ResponseToolkit, ResponseObject } from 'hapi';
-import { DiscordClientId, DiscordRedirect } from '../config/config';
+import { DiscordClientId, DiscordRedirect, AccountsOrigin } from '../config/config';
 import { encryptState, decryptState } from './auth';
 import { Payload } from '../models/payload';
 import { validate, getCurrentUser } from '../lib/discord';
 import { Tokens, User } from '../models/discord';
-import { AccountsOrigin } from '../config/config';
 
 export default class Discord {
 

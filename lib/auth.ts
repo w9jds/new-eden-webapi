@@ -3,13 +3,12 @@ import fetch, {Response} from 'node-fetch';
 import {ErrorResponse, Logger} from 'node-esi-stackdriver';
 
 const logging = new Logger('auth', { projectId: 'new-eden-storage-a5c23' });
-
-let headers = {
+const headers = {
     'Accept': 'application/json',
     'User-Agent' : UserAgent
 };
 
-const verifyResponse = async (method: string, response: Response): Promise<any | ErrorResponse> => {    
+const verifyResponse = async (method: string, response: Response): Promise<any | ErrorResponse> => {
     if (response.status >= 200 && response.status < 305) {
         if (response.body) {
             return await response.json();
@@ -18,7 +17,7 @@ const verifyResponse = async (method: string, response: Response): Promise<any |
     }
 
     await logging.logHttp(method, response, await response.text());
-    
+
     return {
         error: true,
         statusCode: response.status,
@@ -50,7 +49,7 @@ export const verify = (type: string, token: string): Promise<any> => {
             ...headers
         }
     }).then((response: Response) => {
-        if (response.status == 200) {
+        if (response.status === 200) {
             return response.json();
         }
         else {

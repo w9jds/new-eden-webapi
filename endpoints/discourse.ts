@@ -26,7 +26,7 @@ export default class Discourse {
 
     public loginHandler = (request, h) => {
         let hash = CryptoJs.HmacSHA256(request.query.sso, ForumSecret);
-        
+
         let state = sign({
             sso: queryString.parse(atob(request.query.sso)),
             sig: request.query.sig
@@ -44,7 +44,7 @@ export default class Discourse {
         let verification = await verify(tokens.token_type, tokens.access_token);
         let character = await this.esi.getCharacter(verification.CharacterID);
         let state = verifyJwt(request.query.state);
-        
+
         let query = {
             email: `${verification.CharacterID}@gmail.com`,
             nonce: state['sso'].nonce,
@@ -60,7 +60,7 @@ export default class Discourse {
 
             return h.redirect(`${state['sso'].return_sso_url}?sso=${payload}&sig=${sig}`);
         }
-        
+
         throw unauthorized();
     }
 }

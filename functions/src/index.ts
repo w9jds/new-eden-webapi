@@ -41,3 +41,8 @@ export const onTitlesCreated = database.ref('characters/{userId}/titles')
     .onCreate(discord.onTitlesCreate);
 export const onMainCharacterUpdated = database.ref('users/{userId}/mainId')
     .onUpdate(discord.onMainCharacterUpdated);
+
+/**
+ * Caching Managers
+ */
+// export const onSignatureCreate = database.ref('')

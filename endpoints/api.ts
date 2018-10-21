@@ -1,8 +1,7 @@
 import { Request, ResponseToolkit, ResponseObject } from 'hapi';
 import { badRequest, internal } from 'boom';
 import { database } from 'firebase-admin';
-import { Esi, ErrorResponse, Reference } from 'node-esi-stackdriver';
-import { Character, Order } from 'node-esi-stackdriver'
+import { Esi, ErrorResponse, Reference, Character, Order } from 'node-esi-stackdriver';
 import { PostBody } from '../models/routes';
 
 interface RoutesPayload {
@@ -20,10 +19,10 @@ export default class Api {
     constructor(private firebase: database.Database, private esi: Esi) { }
 
     public waypointHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
-        let body = request.payload as PostBody;
-        let credentials = request.auth.credentials as Character;
-    
-        let response = await this.esi.setWaypoint(credentials, body.location, body.setType);
+        const body = request.payload as PostBody;
+        const credentials = request.auth.credentials as Character;
+
+        const response = await this.esi.setWaypoint(credentials, body.location, body.setType);
         if (response.status === 204) {
             return h.response().code(204);
         }
@@ -32,12 +31,12 @@ export default class Api {
     }
 
     public routesHandler = async (request: Request, h: ResponseToolkit) => {
-        let body = request.payload as RoutesPayload;
-        let starts = {}, finished = {}, uniqueIds = [], systems = new Map();
+        const body = request.payload as RoutesPayload;
+        const starts = {}, finished = {}, uniqueIds = [], systems = new Map();
 
         try {
             if (body.start && body.end) {
-                let routes = await Promise.all(
+                const routes = await Promise.all(
                     body.start.map((start: string | number) => this.esi.getRoute(start, body.end, body.type))
                 );
 
@@ -51,26 +50,24 @@ export default class Api {
                     });
                 });
 
-                let metadata = await Promise.all(
+                const metadata = await Promise.all(
                     uniqueIds.map(systemId => this.firebase
                         .ref(`universe/systems/k_space/${systemId}`).once('value'))
                 );
 
-                metadata.forEach((system: database.DataSnapshot) => {
+                for (const system of metadata) {
                     systems.set(system.key, system.val());
-                });
+                }
 
-                Object.keys(starts).forEach(key => {
-                    let route = starts[key].map(id => {
-                        return systems.get(id.toString());
-                    });
-        
-                    if (route[route.length - 1].id != body.end) {
+                for (const key in starts) {
+                    const route = starts[key].map(id => systems.get(id.toString()));
+
+                    if (route[route.length - 1].id !== body.end) {
                         route.reverse();
                     }
-        
+
                     finished[route[0].name] = route;
-                });
+                }
 
                 return finished;
             }
@@ -87,17 +84,17 @@ export default class Api {
         const response = await this.esi.getRegionOrders(request.params.regionId, request.params.typeId);
 
         if (response instanceof Array) {
-            let orders = await this.populateSystemNames(response);
+            const orders = await this.populateSystemNames(response);
             return h.response(orders);
         }
-        
+
         throw badRequest('ErrorResponse', response);
     }
 
     private populateSystemNames = async (orders: MarketOrder[]): Promise<MarketOrder[] | ErrorResponse> => {
-        let ids: number[] = [];
+        const ids: number[] = [];
 
-        for (let order of orders) {
+        for (const order of orders) {
             if (ids.indexOf(order.system_id) < 0) {
                 ids.push(order.system_id);
             }
@@ -106,9 +103,11 @@ export default class Api {
         const names = await this.esi.getNames(ids);
 
         if (names instanceof Array) {
-            let map = names.reduce((end, name: Reference) => {return end[name.id] = name, end}, {});
+            const map = names.reduce((end, name: Reference) => {
+                return end[name.id] = name, end
+            }, {});
 
-            for (let order of orders) {
+            for (const order of orders) {
                 if (map[order.system_id]) {
                     order.system_name = map[order.system_id].name;
                 }
@@ -118,9 +117,5 @@ export default class Api {
         }
 
         throw badRequest('ErrorResponse', names);
-    }
-
-    public characterOverviewHandler = async (request: Request, h: ResponseToolkit) => {
-
     }
 }

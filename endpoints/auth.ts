@@ -11,7 +11,6 @@ import { badRequest, unauthorized } from 'boom';
 import { login, verify } from '../lib/auth';
 import { Character, Permissions } from 'node-esi-stackdriver';
 import { Payload, State } from '../models/payload';
-import { revoke } from '../lib/auth';
 import { AccountsOrigin, RegisterRedirect, RegisterClientId,
     RegisterSecret, LoginRedirect, LoginClientId, LoginSecret,
     EveScopes } from '../config/config';
@@ -54,17 +53,17 @@ const validateScopes = (parameter: string): string[] => {
 
     let scopes = decodeURIComponent(parameter).split(' ') || [];
 
-    defaultScopes.forEach(scope => {
+    for (const scope of defaultScopes) {
         if (scopes.indexOf(scope) < 0) {
             scopes.push(scope);
         }
-    });
+    }
 
-    scopes.forEach(scope => {
+    for (const scope of scopes) {
         if (EveScopes.indexOf(scope) < 0) {
             throw badRequest('Invalid scopes parameter');
         }
-    });
+    }
 
     return scopes;
 }
@@ -168,7 +167,7 @@ export default class Authentication {
             response_type: request.query['response_type'],
             redirect: decodeURI(request.query['redirect_to'])
         });
-        
+
         return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}`
             + `&client_id=${RegisterClientId}&scope=${buildRegisterScopes(request)}&state=${cipherText}`);
     }
@@ -200,7 +199,7 @@ export default class Authentication {
         }
 
         character.child('sso').ref.set(this.createCharacter(tokens, verification, state.accountId).sso);
-        
+
         let token = this.buildProfileToken(state.redirect, state.accountId, verification.CharacterID);
         return this.redirect(state.redirect, token, state.response_type, h);
     }
@@ -305,8 +304,8 @@ export default class Authentication {
             }).code(503);
         }
 
-        return h.response({ 
-            characterId: characterId, 
+        return h.response({
+            characterId: characterId,
             token: await this.auth.createCustomToken(characterId.toString())
         });
     }
