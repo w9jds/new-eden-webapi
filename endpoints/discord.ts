@@ -12,7 +12,7 @@ export default class Discord {
     constructor(private firebase: database.Database) { }
 
     public loginHandler = (request: Request, h: ResponseToolkit): ResponseObject => {
-        let authorization = request.auth.credentials as Payload;
+        let authorization = request.auth.credentials.user as Payload;
         let cipherText = encryptState(authorization);
 
         return h.redirect(`https://discordapp.com/api/oauth2/authorize?client_id=${DiscordClientId}`

@@ -8,7 +8,7 @@ import FirebaseUtils from '../utils/firebase';
 import { database, auth } from 'firebase-admin';
 import { Request, ResponseToolkit, ResponseObject } from 'hapi';
 import { badRequest, unauthorized } from 'boom';
-import { login, verify } from '../lib/auth';
+import { login, verify, revoke } from '../lib/auth';
 import { Character, Permissions } from 'node-esi-stackdriver';
 import { Payload, State } from '../models/payload';
 import { AccountsOrigin, RegisterRedirect, RegisterClientId,
@@ -240,7 +240,7 @@ export default class Authentication {
     }
 
     public addCharacterHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
-        let authorization = request.auth.credentials as Payload;
+        let authorization = request.auth.credentials.user as Payload;
         if (!request.query['redirect_to']) {
             throw badRequest('Invalid Request, redirect_to parameter is required.');
         }
@@ -269,7 +269,7 @@ export default class Authentication {
         }
 
         let scopes: string[] = decodeURIComponent(request.query['scopes']).split(' ');
-        let authorization = request.auth.credentials as Payload;
+        let authorization = request.auth.credentials.user as Payload;
         let characterId: string | number = request.params.userId || authorization.mainId;
         let profile: database.DataSnapshot = await this.getProfile(authorization.accountId);
 

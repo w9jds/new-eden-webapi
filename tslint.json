@@ -41,10 +41,6 @@
       // rule.
       "no-duplicate-variable": [true, "check-parameters"],
 
-      // Disallows a variable definition in an inner scope from shadowing a variable in an outer scope. Developers should
-      // instead use a separate variable name.
-      "no-shadowed-variable": true,
-
       // Empty blocks are almost never needed. Allow the one general exception: empty catch blocks.
       "no-empty": [true, "allow-empty-catch"],
 
@@ -109,9 +105,6 @@
 
       // Warns if code has an import or variable that is unused.
       "no-unused-variable": {"severity": "warning"},
-
-      // Prefer const for values that will not change. This better documents code.
-      "prefer-const": {"severity": "warning"},
 
       // Multi-line object literals and function calls should have a trailing comma. This helps avoid merge conflicts.
       "trailing-comma": {"severity": "warning"}

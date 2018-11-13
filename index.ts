@@ -29,7 +29,12 @@ const server: Server = new Server({
 const acceptCors: RouteOptions = {
     cors: {
         origin: ['*'],
+        credentials: true,
         additionalHeaders: [
+            'Accept',
+            'Authorization',
+            'Content-Type',
+            'If-None-Match',
             'authorization',
             'content-type'
         ]
@@ -43,10 +48,10 @@ const parseState: RouteOptions = {
     }
 }
 
-const firebaseScheme = (server: Server, options: ServerAuthSchemeOptions) => {
+const firebaseScheme = (_server: Server, options: ServerAuthSchemeOptions) => {
     return {
         authenticate: (request: Request, h: ResponseToolkit) => {
-            let header = request.headers.authorization;
+            const header = request.headers.authorization;
 
             if (!header || header.split(' ')[0] != 'Bearer') {
                 throw unauthorized();
@@ -61,7 +66,7 @@ const firebaseScheme = (server: Server, options: ServerAuthSchemeOptions) => {
                 }
             }).then((snapshot: admin.database.DataSnapshot) => {
                 return h.authenticated({
-                    credentials: snapshot.val() as Character
+                    credentials: { user: snapshot.val() as Character }
                 });
             }).catch(error => {
                 throw unauthorized(error);
@@ -71,24 +76,22 @@ const firebaseScheme = (server: Server, options: ServerAuthSchemeOptions) => {
     };
 };
 
-const jwtScheme = (server: Server, options: ServerAuthSchemeOptions) => {
+const jwtScheme = (_server: Server, options: ServerAuthSchemeOptions) => {
     return {
         authenticate: (request: Request, h: ResponseToolkit) => {
-            let header = request.headers.authorization;
+            const header = request.headers.authorization;
 
             if ((!header || header.split(' ')[0] != 'Bearer') && !request.state.profile_jwt && !request.state.profile_session) {
                 throw unauthorized();
             }
 
             try {
-                let payload = header && header.split(' ')[1] ? header.split(' ')[1] : 
-                    request.state.profile_jwt || request.state.profile_session;
-                let token: Payload = verifyJwt(payload);
+                const payload = header && header.split(' ')[1] ? header.split(' ')[1] : request.state.profile_jwt || request.state.profile_session;
+                const token: Payload = verifyJwt(payload);
 
                 if (token && token.aud) {
-                    return h.authenticated({ credentials: token });
-                }
-                else {
+                    return h.authenticated({ credentials: { user: token } });
+                } else {
                     throw unauthorized();
                 }
             }
@@ -100,19 +103,17 @@ const jwtScheme = (server: Server, options: ServerAuthSchemeOptions) => {
 };
 
 const init = async (): Promise<Server> => {
-    let isProd: boolean = process.env.NODE_ENV == 'production';
+    const isProd: boolean = process.env.NODE_ENV == 'production';
 
     server.route({
         method : 'OPTIONS',
         path : '/{params*}',
-        options: {
-            handler: (request, h) => {
-                return h.response({ok: true})
-                    .header('Access-Control-Allow-Origin', request.headers.origin || request.headers.Origin)
-                    .header('Access-Control-Allow-Credentials', 'true')
-                    .header('Access-Control-Allow-Methods', 'GET, POST')
-                    .header('Access-Control-Allow-Headers', 'authorization, content-type');
-            }
+        handler: (request, h) => {
+            return h.response({ok: true})
+                .header('Access-Control-Allow-Origin', request.headers.origin || request.headers.Origin)
+                .header('Access-Control-Allow-Credentials', 'true')
+                .header('Access-Control-Allow-Methods', 'GET, POST')
+                .header('Access-Control-Allow-Headers', 'authorization, content-type');
         }
     });
 
@@ -122,7 +123,7 @@ const init = async (): Promise<Server> => {
         options: {
             auth: false
         },
-        handler: (request: Request, h) => {
+        handler: (_request: Request, h) => {
             return h.response(server.table().map(row => row.path));
         }
     });
@@ -143,12 +144,12 @@ const init = async (): Promise<Server> => {
     createDiscourseRoutes();
 
     await server.start();
-    
+
     return server;
 }
 
 const createApiRoutes = () => {
-    let api = new Api(firebase.database(), esi);
+    const api = new Api(firebase.database(), esi);
 
     server.auth.scheme('firebase', firebaseScheme);
     server.auth.strategy('firebase-auth', 'firebase');
@@ -164,48 +165,48 @@ const createApiRoutes = () => {
         }
     });
 
-    server.route({
-        method: 'GET',
-        path: '/character/{userId*}/mail',
-        handler: {},
-        options: {
-            auth: 'firebase-auth',
-            ...parseState,
-            ...acceptCors
-        }
-    });
+    // server.route({
+    //     method: 'GET',
+    //     path: '/character/{userId*}/mail',
+    //     handler: {},
+    //     options: {
+    //         auth: 'firebase-auth',
+    //         ...parseState,
+    //         ...acceptCors
+    //     }
+    // });
 
-    server.route({
-        method: 'GET',
-        path: '/character/{userId*}/wallet',
-        handler: {},
-        options: {
-            auth: 'firebase-auth',
-            ...parseState,
-            ...acceptCors
-        }
-    });
+    // server.route({
+    //     method: 'GET',
+    //     path: '/character/{userId*}/wallet',
+    //     handler: {},
+    //     options: {
+    //         auth: 'firebase-auth',
+    //         ...parseState,
+    //         ...acceptCors
+    //     }
+    // });
 
-    server.route({
-        method: 'GET',
-        path: '/character/{userId*}/skills',
-        handler: {},
-        options: {
-            auth: 'firebase-auth',
-            ...parseState,
-            ...acceptCors
-        }
-    });
+    // server.route({
+    //     method: 'GET',
+    //     path: '/character/{userId*}/skills',
+    //     handler: {},
+    //     options: {
+    //         auth: 'firebase-auth',
+    //         ...parseState,
+    //         ...acceptCors
+    //     }
+    // });
 
-    server.route({
-        method: 'GET',
-        path: '/market/{regionId}/orders/{typeId*}',
-        handler: api.regionOrdersHandler,
-        options: {
-            auth: false,
-            ...acceptCors
-        }
-    });
+    // server.route({
+    //     method: 'GET',
+    //     path: '/market/{regionId}/orders/{typeId*}',
+    //     handler: api.regionOrdersHandler,
+    //     options: {
+    //         auth: false,
+    //         ...acceptCors
+    //     }
+    // });
 
     server.route({
         method: 'POST',
@@ -219,7 +220,7 @@ const createApiRoutes = () => {
 }
 
 const createAuthRoutes = () => {
-    let authentication = new Authentication(firebase.database(), firebase.auth());
+    const authentication = new Authentication(firebase.database(), firebase.auth());
 
     server.auth.scheme('jwt', jwtScheme);
     server.auth.strategy('jwt-auth', 'jwt');
@@ -303,7 +304,7 @@ const createAuthRoutes = () => {
 }
 
 const createDiscourseRoutes = () => {
-    let discourse = new Discourse(esi);
+    const discourse = new Discourse(esi);
 
     server.route({
         method: 'GET',
@@ -325,7 +326,7 @@ const createDiscourseRoutes = () => {
 }
 
 const createDiscordRoutes = () => {
-    let discord = new Discord(firebase.database());
+    const discord = new Discord(firebase.database());
 
     server.route({
         method: 'GET',
@@ -348,8 +349,8 @@ const createDiscordRoutes = () => {
 
 }
 
-init().then(server => {
-    console.log('Server running at:', server.info.uri);
+init().then((webApi: Server) => {
+    console.log('Server running at:', webApi.info.uri);
 }).catch(error => {
     console.log(error);
 });

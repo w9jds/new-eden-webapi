@@ -20,7 +20,7 @@ export default class Api {
 
     public waypointHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
         const body = request.payload as PostBody;
-        const credentials = request.auth.credentials as Character;
+        const credentials = request.auth.credentials.user as Character;
 
         const response = await this.esi.setWaypoint(credentials, body.location, body.setType);
         if (response.status === 204) {
