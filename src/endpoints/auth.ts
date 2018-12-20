@@ -15,10 +15,23 @@ import { AccountsOrigin, RegisterRedirect, RegisterClientId,
     RegisterSecret, LoginRedirect, LoginClientId, LoginSecret,
     EveScopes } from '../config/config';
 
-const types = {
-    register: 'register',
-    addCharacter: 'addCharacter',
-    scopes: 'scopes'
+enum RequestType {
+    REGISTER = 'register',
+    ADD_CHARACTER = 'addCharacter',
+    SCOPES = 'scopes'
+}
+
+enum SessionType {
+    NONE = 'none',
+    TOKEN = 'token',
+    PERSISTENT = 'persistent',
+    SESSION = 'session'
+}
+
+enum ErrorType {
+    CHARACTER_NOT_FOUND = 'character_not_found',
+    MISSING_SCOPES = 'missing_scopes'
+
 }
 
 const defaultScopes = [
@@ -92,6 +105,18 @@ const buildRegisterScopes = (request: Request): string => {
     return encodeURIComponent(defaultScopes.join(' '));
 }
 
+const isValidSessionType = (responseType: string): boolean => {
+    switch (responseType) {
+        case SessionType.NONE:
+        case SessionType.TOKEN:
+        case SessionType.PERSISTENT:
+        case SessionType.SESSION:
+            return true;
+        default:
+            return false;
+    }
+}
+
 export default class Authentication {
     constructor(private firebase: database.Database, private auth: auth.Auth) {}
 
@@ -99,7 +124,8 @@ export default class Authentication {
         if (!request.query['redirect_to']) {
             throw badRequest('Invalid Request', 'redirect_to parameter is required.');
         }
-        if (!request.query['response_type'] && request.query['response_type'] != 'none' && request.query['response_type'] != 'token' && request.query['response_type'] != 'persistant' && request.query['response_type'] != 'session') {
+
+        if (!isValidSessionType(request.query['response_type'])) {
             throw badRequest('Invalid Request', 'valid type parameter is required.');
         }
 
@@ -109,6 +135,7 @@ export default class Authentication {
             scopes: validateScopes(request.query['scopes']),
             redirect: decodeURI(request.query['redirect_to'])
         });
+
         return h.redirect(`https://login.eveonline.com/oauth/authorize?response_type=code&redirect_uri=${LoginRedirect}`
             + `&client_id=${LoginClientId}&state=${cipherText}`);
     }
@@ -154,16 +181,18 @@ export default class Authentication {
     }
 
     public registerHandler = (request: Request, h: ResponseToolkit) => {
+
         if (!request.query['redirect_to']) {
             throw badRequest('Invalid Request, redirect_to parameter is required.');
         }
-        if (!request.query['response_type'] && request.query['response_type'] != 'none' && request.query['response_type'] != 'token' && request.query['response_type'] != 'persistant' && request.query['response_type'] != 'session') {
+
+        if (!isValidSessionType(request.query['response_type'])) {
             throw badRequest('Invalid Request, valid type parameter is required.');
         }
 
         let cipherText = encryptState({
             aud: request.info.host,
-            type: types.register,
+            type: RequestType.REGISTER,
             response_type: request.query['response_type'],
             redirect: decodeURI(request.query['redirect_to'])
         });
@@ -173,17 +202,17 @@ export default class Authentication {
     }
 
     public registerCallbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
-        let state: State = decryptState(request.query['state']) as State;
-        let tokens = await login(request.query['code'], RegisterClientId, RegisterSecret);
-        let verification = await verify(tokens.token_type, tokens.access_token);
-        let character: database.DataSnapshot = await this.getCharacter(verification.CharacterID);
+        const state: State = decryptState(request.query['state']) as State;
+        const tokens = await login(request.query['code'], RegisterClientId, RegisterSecret);
+        const verification = await verify(tokens.token_type, tokens.access_token);
+        const character: database.DataSnapshot = await this.getCharacter(verification.CharacterID);
 
         if (!character.exists()) {
-            if (state.type == types.register) {
-                let token = await this.createNewProfile(state, request, tokens, verification);
+            if (state.type === RequestType.REGISTER) {
+                let token = await this.createNewProfile(state, tokens, verification);
                 return this.redirect(state.redirect, token, state.response_type, h);
             }
-            if (state.type == types.addCharacter) {
+            if (state.type === RequestType.ADD_CHARACTER) {
                 let character = this.createCharacter(tokens, verification, state.accountId);
                 await Promise.all([
                     this.createUser(verification),
@@ -244,7 +273,7 @@ export default class Authentication {
         if (!request.query['redirect_to']) {
             throw badRequest('Invalid Request, redirect_to parameter is required.');
         }
-        if (authorization.aud != request.info.host) {
+        if (authorization.aud !== request.info.host) {
             throw unauthorized('invalid_client: Token is for another client');
         }
 
@@ -254,7 +283,7 @@ export default class Authentication {
         }
 
         let cipherText = encryptState({
-            type: types.addCharacter,
+            type: RequestType.ADD_CHARACTER,
             aud: request.info.host,
             accountId: authorization.accountId,
             redirect: decodeURIComponent(request.query['redirect_to'])
@@ -280,12 +309,12 @@ export default class Authentication {
         let character: database.DataSnapshot = await this.getCharacter(characterId);
         if (!character.exists()) {
             return h.response({
-                error: 'invalid_character',
-                redirect: `${AccountsOrigin}?type=character_not_found&redirect_to=${request.info.referrer}&scopes=${scopes.join('%20')}`
+                error: ErrorType.CHARACTER_NOT_FOUND,
+                redirect: `${AccountsOrigin}?type=${ErrorType.CHARACTER_NOT_FOUND}&redirect_to=${request.info.referrer}&scopes=${scopes.join('%20')}`
             }).code(503);
         }
 
-        if (character.child('accountId').val() != authorization.accountId) {
+        if (character.child('accountId').val() !== authorization.accountId) {
             throw unauthorized('Character not part of provided profile!');
         }
 
@@ -298,8 +327,8 @@ export default class Authentication {
             });
 
             return h.response({
-                error: 'missing_scopes',
-                redirect: `${AccountsOrigin}?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}`
+                error: ErrorType.MISSING_SCOPES,
+                redirect: `${AccountsOrigin}?type=${ErrorType.MISSING_SCOPES}&name=${encodeURIComponent(character.child('name').val())}`
                     + `&redirect=${request.info.referrer}&state=${cipherText}`
             }).code(503);
         }
@@ -347,13 +376,13 @@ export default class Authentication {
     }
 
     private redirect = (uri: string, token: string, type: string, h: ResponseToolkit): ResponseObject => {
-        if (type == 'none') {
+        if (type === SessionType.NONE) {
             return h.redirect(uri);
         }
-        if (type == 'token') {
+        if (type === SessionType.TOKEN) {
             return h.redirect(`${uri}#${token}`)
         }
-        if (type == 'persistant') {
+        if (type === SessionType.PERSISTENT) {
             h.state('profile_jwt', token, {
                 domain: 'new-eden.io',
                 path: '/',
@@ -361,7 +390,7 @@ export default class Authentication {
             });
             return h.redirect(`${uri}`);
         }
-        if (type == 'session') {
+        if (type === SessionType.SESSION) {
             h.state('profile_jwt', token, {
                 domain: 'new-eden.io',
                 path: '/'
@@ -370,11 +399,11 @@ export default class Authentication {
         }
     }
 
-    private createNewProfile = async (state, request, tokens, verification): Promise<string> => {
+    private createNewProfile = async (state, tokens, verification): Promise<string> => {
         let accountId: string = FirebaseUtils.generateKey();
-        let record: auth.UserRecord = await this.createUser(verification);
 
         await Promise.all([
+            this.createUser(verification),
             this.firebase.ref(`characters/${verification.CharacterID}`).set(this.createCharacter(tokens, verification, accountId)),
             this.firebase.ref(`users/${accountId}`).set({
                 id: accountId,

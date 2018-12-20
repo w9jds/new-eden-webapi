@@ -1,7 +1,7 @@
 import { DiscordBaseUri } from '../config/config';
-import {ErrorResponse} from 'node-esi-stackdriver';
-import fetch, { Response, Headers } from 'node-fetch';
-import {GuildMember, PatchGuildMember, GuildRole, Guild, AddGuildMember} from '../models/Discord';
+import { ErrorResponse } from 'node-esi-stackdriver';
+import fetch, { Response } from 'node-fetch';
+import { GuildMember, PatchGuildMember, GuildRole, Guild, AddGuildMember } from '../models/Discord';
 
 export default class DiscordApi {
 

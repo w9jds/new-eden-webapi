@@ -1,23 +1,18 @@
 import { database, Change, EventContext } from 'firebase-functions';
-import { Esi, Character, ErrorResponse } from 'node-esi-stackdriver';
+import { Character, ErrorResponse } from 'node-esi-stackdriver';
 import * as admin from 'firebase-admin';
 import * as bluebird from 'bluebird';
 
-import { UserAgent } from '../config/config';
 import { DiscordAccount, Account } from '../models/User';
 import { FirebaseGuild, GuildRole, GuildMember } from '../models/Discord';
 import DiscordApi from '../lib/DiscordApi';
 
 export default class DiscordHandlers {
 
-    private esi: Esi;
     private api: DiscordApi;
 
     constructor(private firebase: admin.database.Database, token: string) {
         this.api = new DiscordApi(token);
-        this.esi = new Esi(UserAgent, {
-            projectId: 'new-eden-storage-a5c23'
-        });
     }
 
     private getFirebaseObject = async <T>(reference: admin.database.Reference): Promise<T | null> => {
@@ -44,7 +39,7 @@ export default class DiscordHandlers {
 
     private getGuild = async (corpId: number): Promise<FirebaseGuild> => {
         const matches = await this.getFirebaseObjects<FirebaseGuild>(
-            this.firebase.ref(`guilds`).orderByChild('corpId').equalTo(corpId)
+            this.firebase.ref('guilds').orderByChild('corpId').equalTo(corpId)
         );
         return matches[0];
     }

@@ -12,7 +12,7 @@ const realtime = firebase.database();
 const discord = new DiscordHandlers(realtime, config().aura.token)
 const character = new CharacterHandlers(realtime);
 const locations = new LocationHandlers(realtime);
-const statistics = new StatisticsHandlers(realtime);
+const statistics = new StatisticsHandlers();
 
 /**
  * Database Data Updates
@@ -41,8 +41,3 @@ export const onTitlesCreated = database.ref('characters/{userId}/titles')
     .onCreate(discord.onTitlesCreate);
 export const onMainCharacterUpdated = database.ref('users/{userId}/mainId')
     .onUpdate(discord.onMainCharacterUpdated);
-
-/**
- * Caching Managers
- */
-// export const onSignatureCreate = database.ref('')

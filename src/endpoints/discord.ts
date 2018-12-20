@@ -1,7 +1,7 @@
 import * as moment from 'moment';
 import { database } from 'firebase-admin';
 import { Request, ResponseToolkit, ResponseObject } from 'hapi';
-import { DiscordClientId, DiscordRedirect, AccountsOrigin } from '../config/config';
+import { DiscordClientId, DiscordRedirect, AccountsOrigin, DiscordScopes } from '../config/config';
 import { encryptState, decryptState } from './auth';
 import { Payload } from '../models/payload';
 import { validate, getCurrentUser } from '../lib/discord';
@@ -16,7 +16,7 @@ export default class Discord {
         let cipherText = encryptState(authorization);
 
         return h.redirect(`https://discordapp.com/api/oauth2/authorize?client_id=${DiscordClientId}`
-            + `&redirect_uri=${encodeURIComponent(DiscordRedirect)}&response_type=code&scope=identify%20guilds.join&state=${cipherText}`);
+            + `&redirect_uri=${encodeURIComponent(DiscordRedirect)}&response_type=code&scope=${encodeURIComponent(DiscordScopes.join(' '))}&state=${cipherText}`);
     }
 
     public callbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
@@ -32,6 +32,9 @@ export default class Discord {
             id: user.id,
             accountId: state.accountId,
             username: user.username,
+            discriminator: user.discriminator,
+            verified: user.verified,
+            avatar: user.avatar,
             email: user.email || null,
             accessToken: tokens.access_token,
             refreshToken: tokens.refresh_token,

@@ -46,7 +46,7 @@ export default class Discourse {
         let state = verifyJwt(request.query.state);
 
         let query = {
-            email: `${verification.CharacterID}@gmail.com`,
+            email: `${verification.CharacterID}@eveonline.com`,
             nonce: state['sso'].nonce,
             external_id: verification.CharacterID,
             username: character.name.replace(' ', '_'),

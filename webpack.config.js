@@ -3,12 +3,12 @@ const nodeExternals = require('webpack-node-externals');
 
 module.exports = {
     name: 'server',
-    context: __dirname,  
+    context: __dirname,
     target: 'node',
     devtool: 'sourcemap',
     mode: 'development',
     entry: {
-        server: ['./index.ts']   
+        server: ['./src/index.ts']
     },
     output: {
         path: path.resolve(__dirname, './build'),
