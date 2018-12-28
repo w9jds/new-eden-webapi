@@ -68,6 +68,7 @@ export default class DiscordHandlers {
                 }
             }
         }
+
         if (isMember) {
             for (const role of roles) {
                 if (role.name === 'Member' || (character.titles && character.titles.indexOf(role.name) > -1)) {
@@ -86,11 +87,12 @@ export default class DiscordHandlers {
             const profile: Account = await this.getAccount(character.accountId);
             const account: DiscordAccount = await this.getDiscordAccount(character.accountId);
 
+            console.debug(`${character.name} is not the main character for their account.`);
+
             if (profile.mainId === character.id) {
                 return this.updateRoles(character, account);
             }
         }
-
     }
 
     private updateRoles = async (character: Character, account: DiscordAccount): Promise<any> => {
@@ -140,6 +142,8 @@ export default class DiscordHandlers {
                         roles: await this.getRoles(character, guild, roles)
                     });
                 }
+
+                console.info('Could not get list of roles from specified Guild');
             }
             else {
                 return Promise.all([
@@ -147,6 +151,18 @@ export default class DiscordHandlers {
                     this.updateRoles(character, discordAccount)
                 ]);
             }
+        }
+
+        if (!account) {
+            console.info(`Could not find the associated account!`);
+        }
+
+        if (!character)  {
+            console.info(`Could not find the associated character!`);
+        }
+
+        if (!guild) {
+            console.info(`No corp/alliance guild was found for ${character.name} so he wasn't auto added to any guilds`)
         }
 
         return;
