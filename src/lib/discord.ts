@@ -1,5 +1,5 @@
 import { DiscordClientId, DiscordSecret, DiscordRedirect } from '../config/config';
-import { Tokens, User } from '../models/discord';
+import { Tokens, DiscordUser } from '../../models/discord';
 import fetch, { Response } from 'node-fetch';
 
 export const validate = async (code: string): Promise<Tokens> => {
@@ -13,18 +13,7 @@ export const validate = async (code: string): Promise<Tokens> => {
     return await response.json() as Tokens;
 }
 
-export const refresh = async (refreshToken: string): Promise<Tokens> => {
-    const response: Response = await fetch(`https://discordapp.com/api/oauth2/token?client_id=${DiscordClientId}&client_secret=${DiscordSecret}&grant_type=refresh_token&refresh_token=${refreshToken}&redirect_uri=${DiscordRedirect}`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-        }
-    });
-
-    return await response.json() as Tokens;
-}
-
-export const getCurrentUser = async (accessToken: string): Promise<User> => {
+export const getCurrentUser = async (accessToken: string): Promise<DiscordUser> => {
     const response: Response = await fetch(`https://discordapp.com/api/v6/users/@me`, {
         method: 'GET',
         headers: {
@@ -32,5 +21,5 @@ export const getCurrentUser = async (accessToken: string): Promise<User> => {
         }
     });
 
-    return await response.json() as User;
+    return await response.json() as DiscordUser;
 }

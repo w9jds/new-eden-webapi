@@ -1,0 +1,1 @@
+export type System = Record<string, any>;

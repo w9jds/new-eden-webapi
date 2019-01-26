@@ -1,17 +1,18 @@
-import {database, config} from 'firebase-functions';
+import {database, config, https} from 'firebase-functions';
 import {initializeApp} from 'firebase-admin';
 
 import CharacterHandlers from './modules/character';
 import LocationHandlers from './modules/locations';
 import StatisticsHandlers from './modules/statistics';
 import DiscordHandlers from './modules/discord';
+import { Aura } from '../../models/Discord';
 
 const firebase = initializeApp();
-const realtime = firebase.database();
+const realTime = firebase.database();
 
-const discord = new DiscordHandlers(realtime, config().aura.token)
-const character = new CharacterHandlers(realtime);
-const locations = new LocationHandlers(realtime);
+const discord = new DiscordHandlers(realTime, config().aura as Aura)
+const character = new CharacterHandlers(realTime);
+const locations = new LocationHandlers(realTime);
 const statistics = new StatisticsHandlers();
 
 /**

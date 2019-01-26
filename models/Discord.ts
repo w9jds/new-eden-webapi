@@ -59,3 +59,17 @@ export interface Guild {
     owner: boolean;
     permissions: number;
 }
+
+export interface Aura {
+    token: string;
+    client_id: string;
+    client_secret: string;
+}
+
+export interface Tokens {
+    access_token: string;
+    token_type: string;
+    expires_in: number;
+    refresh_token: string;
+    scope: string;
+}

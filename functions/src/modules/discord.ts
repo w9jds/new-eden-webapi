@@ -1,18 +1,19 @@
 import { database, Change, EventContext } from 'firebase-functions';
 import { Character, ErrorResponse } from 'node-esi-stackdriver';
+import { isBefore } from 'date-fns';
 import * as admin from 'firebase-admin';
 import * as bluebird from 'bluebird';
 
-import { DiscordAccount, Account } from '../models/User';
-import { FirebaseGuild, GuildRole, GuildMember } from '../models/Discord';
 import DiscordApi from '../lib/DiscordApi';
+import { FirebaseGuild, GuildRole, GuildMember, Aura } from '../../../models/Discord';
+import { DiscordAccount, Account } from '../../../models/User';
 
 export default class DiscordHandlers {
 
     private api: DiscordApi;
 
-    constructor(private firebase: admin.database.Database, token: string) {
-        this.api = new DiscordApi(token);
+    constructor(private firebase: admin.database.Database, aura: Aura) {
+        this.api = new DiscordApi(aura.client_id, aura.client_secret, aura.token);
     }
 
     private getFirebaseObject = async <T>(reference: admin.database.Reference): Promise<T | null> => {
@@ -80,6 +81,25 @@ export default class DiscordHandlers {
         return ids;
     }
 
+    private refreshTokens = async (account: DiscordAccount): Promise<boolean> => {
+        const response = await this.api.refresh(account.refreshToken, account.scope);
+
+        if ('error' in response) {
+            if (response.statusCode >= 400 && response.statusCode < 500) {
+                await this.firebase.ref(`discord/${account.id}`).remove();
+                return false;
+            }
+        }
+
+        await this.firebase.ref(`discord/${account.id}`).update(response)
+            .catch(error => {
+                console.error(`Error storing updated credentials: `, error);
+                return false;
+            });
+
+        return true;
+    }
+
     private updateRolesFromId = async (userId: number): Promise<any> => {
         const character: Character = await this.getCharacter(userId);
 
@@ -87,11 +107,11 @@ export default class DiscordHandlers {
             const profile: Account = await this.getAccount(character.accountId);
             const account: DiscordAccount = await this.getDiscordAccount(character.accountId);
 
-            console.debug(`${character.name} is not the main character for their account.`);
-
             if (profile.mainId === character.id) {
                 return this.updateRoles(character, account);
             }
+
+            console.info(`${character.name} is not the main character for their account.`);
         }
     }
 
@@ -101,6 +121,8 @@ export default class DiscordHandlers {
         if (account && guilds) {
             const patches = [];
 
+            console.info(`Updating roles for ${character.name}`);
+
             for (const guild of guilds) {
                 const user: GuildMember | ErrorResponse = await this.api.getGuildMember(guild.id, account.id);
 
@@ -108,23 +130,23 @@ export default class DiscordHandlers {
                     const roles: GuildRole[] | ErrorResponse = await this.api.getGuildRoles(guild.id);
 
                     if (roles instanceof Array) {
+                        const updatedRoles = await this.getRoles(character, guild, roles);
+
                         patches.push(
                             this.api.updateGuildMember(guild.id, account.id, {
-                                roles: await this.getRoles(character, guild, roles)
+                                roles: updatedRoles
                             })
                         );
+
+                        console.info(`Updating ${character.name} to roles of ${updatedRoles.join(', ')}`);
+                        return bluebird.map(patches, item => item, { concurrency: 300 });
                     }
                 }
             }
-
-            return bluebird.map(patches, item => item, { concurrency: 300 });
         }
-
-        return;
     }
 
-    public onNewAccount = async (snapshot: database.DataSnapshot, context?: EventContext): Promise<any> => {
-        const discordAccount: DiscordAccount = snapshot.val();
+    private manageAccount = async (discordAccount: DiscordAccount): Promise<any> => {
         const account: Account = await this.getAccount(discordAccount.accountId);
         const character: Character = await this.getCharacter(account.mainId);
         const guild: FirebaseGuild = await this.getGuild(character.corpId);
@@ -143,7 +165,8 @@ export default class DiscordHandlers {
                     });
                 }
 
-                console.info('Could not get list of roles from specified Guild');
+                console.warn('Could not get list of roles from specified Guild');
+                return;
             }
             else {
                 return Promise.all([
@@ -154,25 +177,62 @@ export default class DiscordHandlers {
         }
 
         if (!account) {
-            console.info(`Could not find the associated account!`);
+            console.warn(`Could not find the associated account!`);
         }
 
         if (!character)  {
-            console.info(`Could not find the associated character!`);
+            console.warn(`Could not find the associated character!`);
         }
 
         if (!guild) {
-            console.info(`No corp/alliance guild was found for ${character.name} so he wasn't auto added to any guilds`)
+            console.warn(`No corp discord guild was found for ${character.name} so he wasn't added to any guilds.`)
         }
-
-        return;
     }
 
-    public onAllianceUpdate = (_change: Change<database.DataSnapshot>, context?: EventContext) =>
-        this.updateRolesFromId(context.params.userId);
+    private updateAssociations = async (userId: number): Promise<any> => {
+        const character: Character = await this.getCharacter(userId);
 
-    public onCorpUpdate = (_change: Change<database.DataSnapshot>, context?: EventContext) =>
-        this.updateRolesFromId(context.params.userId);
+        if (character) {
+            const profile: Account = await this.getAccount(character.accountId);
+            const account: DiscordAccount = await this.getDiscordAccount(character.accountId);
+
+            if (account && profile.mainId === character.id) {
+
+                if (isBefore(new Date(), new Date(account.expiresAt))) {
+                    console.info(`Refreshing token for ${account.username}#${account.discriminator}...`);
+
+                    if (await this.refreshTokens(account) === false) {
+                        console.warn(`Token refresh for ${account.username}#${account.discriminator} failed, and has been removed.`);
+                        return;
+                    }
+                }
+                else {
+                    console.info(`Refresh token still valid, running manageAccount.`);
+                }
+
+                return await this.manageAccount(await this.getDiscordAccount(character.accountId));
+            }
+
+            console.info(account ? 
+                `${character.name} is not the main of this profile.` : 
+                `Couldn't find discord for ${character.name} with ${profile.id}`
+            );
+        }
+    }
+
+    public onNewAccount = async (snapshot: database.DataSnapshot, context?: EventContext): Promise<any> => 
+        this.manageAccount(snapshot.val() as DiscordAccount);
+
+    /**
+     * Update Discord roles for ALL registered guilds this member belongs to, 
+     * and add the user to any guild they may now belong to with the update affiliations
+     */
+    public onCorpUpdate = async (_change: Change<database.DataSnapshot>, context?: EventContext): Promise<void> => {
+        console.info('Searching for new associated servers that are available.');
+        await this.updateAssociations(context.params.userId);
+        console.info('Updating roles on all registered Discord servers.');
+        await this.updateRolesFromId(context.params.userId);
+    }
 
     public onTitlesUpdate = (_change: Change<database.DataSnapshot>, context?: EventContext) =>
         this.updateRolesFromId(context.params.userId);

@@ -13,15 +13,18 @@ export interface Account {
 }
 
 export interface DiscordAccount {
-    accessToken: string;
-    accountId: string;
-    email?: string;
-    expiresAt: number;
     id: string;
+    accountId: string;
+    username: string
+    discriminator?: string;
+    verified: boolean;
+    avatar?: string;
+    email?: string;
+    accessToken: string;
     refreshToken: string;
-    scope: string;
+    expiresAt: number;
     tokenType: string;
-    username: string;
+    scope: string;
 }
 
 export interface EventReference extends User {

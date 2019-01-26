@@ -1,16 +1,44 @@
-import { DiscordBaseUri } from '../config/config';
+import { DiscordBaseUri, DiscordRedirect } from '../config/config';
 import { ErrorResponse } from 'node-esi-stackdriver';
 import fetch, { Response } from 'node-fetch';
-import { GuildMember, PatchGuildMember, GuildRole, Guild, AddGuildMember } from '../models/Discord';
+import { GuildMember, PatchGuildMember, GuildRole, Guild, AddGuildMember, Tokens } from '../../../models/Discord';
 
 export default class DiscordApi {
 
     private headers;
 
-    constructor(token: string) {
+    constructor(private clientId: string, private clientSecret: string, token: string) {
         this.headers = {
             'Authorization': `Bot ${token}`,
             'User-Agent': 'Aura Bot Cloud Functions (https://github.com/w9jds, v1) - Chingy Chonga / Jeremy Shore - w9jds@live.com'
+        }
+    }
+
+    public refresh = async (refreshToken: string, scope: string): Promise<Tokens | ErrorResponse> => {
+        const response: Response = await fetch('https://discordapp.com/api/oauth2/token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `client_id=${this.clientId}&client_secret=${this.clientSecret}&` + 
+                  `grant_type='refresh_token'&refresh_token=${refreshToken}&redirect_uri=${DiscordRedirect}&` +
+                  `scope=${scope}`
+        });
+
+        if (response.status >= 200 && response.status < 300) {
+            if (response.status === 204) {
+                return null;
+            }
+
+            return await response.json() as Tokens;
+        }
+
+        console.log(await response.text());
+
+        return {
+            error: true,
+            statusCode: response.status,
+            uri: response.url
         }
     }
 

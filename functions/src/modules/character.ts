@@ -55,7 +55,7 @@ export default class CharacterHandlers {
 
         await ref.child('expired_scopes').remove();
         const accountId: admin.database.DataSnapshot = await ref.child('accountId').once('value');
-        return await this.updateFlags(accountId.val());
+        await this.updateFlags(accountId.val());
     }
 
     private updateFlags = async (accountId: string) => {
@@ -80,7 +80,5 @@ export default class CharacterHandlers {
                 errors: false
             });
         }
-
-        return;
     }
 }

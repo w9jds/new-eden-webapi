@@ -8,7 +8,7 @@ import Discourse from './endpoints/discourse';
 import Discord from './endpoints/discord';
 import Api from './endpoints/api';
 
-import { DatabaseConfig, AccountsOrigin, UserAgent } from './config/config';
+import { DatabaseConfig, UserAgent } from './config/config';
 import { Payload } from './models/payload';
 import { Character, Esi } from 'node-esi-stackdriver';
 

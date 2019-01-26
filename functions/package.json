@@ -9,9 +9,10 @@
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log"
   },
-  "main": "lib/index.js",
+  "main": "lib/functions/src/index.js",
   "dependencies": {
     "bluebird": "^3.5.3",
+    "date-fns": "^2.0.0-alpha.26",
     "firebase-admin": "~6.4.0",
     "firebase-functions": "^2.1.0",
     "node-esi-stackdriver": "^1.0.27",
