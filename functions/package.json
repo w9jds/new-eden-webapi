@@ -13,17 +13,17 @@
   "dependencies": {
     "bluebird": "^3.5.3",
     "date-fns": "^2.0.0-alpha.26",
-    "firebase-admin": "~6.4.0",
-    "firebase-functions": "^2.1.0",
-    "node-esi-stackdriver": "^1.0.27",
+    "firebase-admin": "~7.0.0",
+    "firebase-functions": "^2.2.0",
+    "node-esi-stackdriver": "^1.0.28",
     "node-fetch": "^2.3.0",
     "tslib": "^1.9.3"
   },
   "devDependencies": {
     "@types/bluebird": "^3.5.25",
-    "@types/node-fetch": "^2.1.4",
-    "tslint": "^5.12.0",
-    "typescript": "~3.2.2"
+    "@types/node-fetch": "^2.1.6",
+    "tslint": "^5.13.0",
+    "typescript": "~3.3.3333"
   },
   "private": true
 }

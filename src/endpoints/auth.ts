@@ -10,7 +10,7 @@ import { Request, ResponseToolkit, ResponseObject } from 'hapi';
 import { badRequest, unauthorized } from 'boom';
 import { login, verify, revoke } from '../lib/auth';
 import { Character, Permissions } from 'node-esi-stackdriver';
-import { Payload, State } from '../models/payload';
+import { Payload, State } from '../../models/payload';
 import { AccountsOrigin, RegisterRedirect, RegisterClientId,
     RegisterSecret, LoginRedirect, LoginClientId, LoginSecret,
     EveScopes } from '../config/config';
@@ -227,7 +227,7 @@ export default class Authentication {
             await revoke(permissions.accessToken, RegisterClientId, RegisterSecret);
         }
 
-        character.child('sso').ref.set(this.createCharacter(tokens, verification, state.accountId).sso);
+        await character.child('sso').ref.set(this.createCharacter(tokens, verification, state.accountId).sso);
 
         let token = this.buildProfileToken(state.redirect, state.accountId, verification.CharacterID);
         return this.redirect(state.redirect, token, state.response_type, h);
