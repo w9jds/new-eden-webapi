@@ -20,9 +20,9 @@ export default class DiscordApi {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: `client_id=${this.clientId}&client_secret=${this.clientSecret}&` + 
+            body: encodeURIComponent(`client_id=${this.clientId}&client_secret=${this.clientSecret}&` + 
                   `grant_type='refresh_token'&refresh_token=${refreshToken}&redirect_uri=${DiscordRedirect}&` +
-                  `scope=${scope}`
+                  `scope=${scope}`)
         });
 
         if (response.status >= 200 && response.status < 300) {
