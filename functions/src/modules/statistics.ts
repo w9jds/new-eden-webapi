@@ -4,10 +4,10 @@ import * as admin from 'firebase-admin';
 import { Action } from '../../../models/Action';
 import { Logger, Severity } from 'node-esi-stackdriver';
 
-enum EventTypes {
-    CREATE = 'providers/google.firebase.database/eventTypes/ref.create',
-    DELETE = 'providers/google.firebase.database/eventTypes/ref.delete'
-}
+// enum EventTypes {
+//     CREATE = 'providers/google.firebase.database/eventTypes/ref.create',
+//     DELETE = 'providers/google.firebase.database/eventTypes/ref.delete'
+// }
 
 export default class StatisticsHandlers {
 

@@ -6,6 +6,6 @@ export default class LocationHandlers {
 
     public onAffiliationsUpdate = (change: Change<database.DataSnapshot>, context?: EventContext) => {
         return this.firebase.ref(`locations/${change.before.val()}/${context.params.userId}`)
-            .transaction(current => null);
+            .transaction(_ => null);
     };
 }

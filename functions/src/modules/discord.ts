@@ -1,8 +1,8 @@
+import * as admin from 'firebase-admin';
+import * as bluebird from 'bluebird';
 import { database, Change, EventContext } from 'firebase-functions';
 import { Character, ErrorResponse } from 'node-esi-stackdriver';
 import { isBefore } from 'date-fns';
-import * as admin from 'firebase-admin';
-import * as bluebird from 'bluebird';
 
 import DiscordApi from '../lib/DiscordApi';
 import { FirebaseGuild, GuildRole, GuildMember, Aura } from '../../../models/Discord';

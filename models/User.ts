@@ -5,6 +5,13 @@ export interface User {
     name: string;
 }
 
+export interface UserAccess {
+    read: boolean;
+    write: boolean;
+    name?: string;
+    type: 'character' | 'corporation' | 'alliance';
+}
+
 export interface Account {
     errors: boolean;
     id: string;
