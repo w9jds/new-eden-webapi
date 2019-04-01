@@ -1,6 +1,6 @@
 import { database } from 'firebase-admin';
 import { EventContext, Change } from 'firebase-functions';
-import { UserAgent } from '../config/config';
+import { UserAgent } from '../config/constants';
 import { Esi } from 'node-esi-stackdriver';
 import { Map } from '../../../models/Map';
 

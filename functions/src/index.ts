@@ -1,4 +1,4 @@
-import { database, config } from 'firebase-functions';
+import { database, config, EventContext } from 'firebase-functions';
 import { initializeApp } from 'firebase-admin';
 
 import AuthHandlers from './modules/auth';
@@ -8,16 +8,18 @@ import StatisticsHandlers from './modules/statistics';
 import DiscordHandlers from './modules/discord';
 import AccessLists from './modules/accesslists';
 import { Aura } from '../../models/Discord';
+import CloudSql from './modules/cloudSql';
 
 const firebase = initializeApp();
 const realTime = firebase.database();
 
 const auth = new AuthHandlers(realTime);
+const cloudSql = new CloudSql(realTime);
 const accessLists = new AccessLists(realTime);
 const character = new CharacterHandlers(realTime);
 const locations = new LocationHandlers(realTime);
 const statistics = new StatisticsHandlers(realTime);
-const discord = new DiscordHandlers(realTime, config().aura as Aura)
+const discord = new DiscordHandlers(realTime, config().aura as Aura);
 
 /**
  * Database Data Updates
@@ -38,8 +40,6 @@ export const onRolesChanged = database.ref('characters/{userId}/roles/roles')
  */
 export const onMapDeleted = database.ref('maps/{mapId}')
     .onDelete(accessLists.onMapDeleted);
-// export const onMapCreated = database.ref('maps/{mapId}')
-//     .onCreate(accessLists.onMapCreated);
 export const onAccessGroupCreated = database.ref('maps/{mapId}/accesslist/{groupId}')
     .onCreate(accessLists.onAccessGroupCreated);
 export const onAccessGroupDeleted = database.ref(`maps/{mapId}/accesslist/{groupId}`)
@@ -62,15 +62,29 @@ export const onMainCharacterUpdated = database.ref('users/{userId}/mainId')
     .onUpdate(discord.onMainCharacterUpdated);
 
 /**
- * Statistics
+ * Event Managers
  */
+const onMapEvent = (snapshot: database.DataSnapshot, context?: EventContext) => {
+    return Promise.all([
+        cloudSql.onMapEvent(snapshot, context),
+        statistics.onMapEvent(snapshot, context)
+    ]);
+}
+
+const onSystemEvent = (snapshot: database.DataSnapshot, context?: EventContext) => {
+    return Promise.all([
+        cloudSql.onSystemEvent(snapshot, context),
+        statistics.onSystemEvent(snapshot, context)
+    ]);
+}
+    
 export const onMapEventCreated = database.ref('maps/{mapId}')
-    .onCreate(statistics.onMapEvent)
+    .onCreate(onMapEvent);
 export const onMapEventDeleted = database.ref('maps/{mapId}')
-    .onDelete(statistics.onMapEvent)
+    .onDelete(onMapEvent);
 export const onSystemEventCreated = database.ref('maps/{mapId}/systems/{systemId}')
-    .onCreate(statistics.onSystemEvent)
+    .onCreate(onSystemEvent)
 export const onSystemEventDeleted = database.ref('maps/{mapId}/systems/{systemId}')
-    .onDelete(statistics.onSystemEvent)
+    .onDelete(onSystemEvent)
 export const onStatisticCreate = database.ref('statistics/{eventId}')
     .onCreate(statistics.onNewAction);

@@ -1,15 +1,11 @@
-import { database, EventContext } from 'firebase-functions';
+import { database, EventContext, config } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
 import { Action } from '../../../models/Action';
 import { Logger, Severity } from 'node-esi-stackdriver';
 
-// enum EventTypes {
-//     CREATE = 'providers/google.firebase.database/eventTypes/ref.create',
-//     DELETE = 'providers/google.firebase.database/eventTypes/ref.delete'
-// }
-
 export default class StatisticsHandlers {
+
 
     constructor(private firebase: admin.database.Database) { }
 
@@ -42,15 +38,17 @@ export default class StatisticsHandlers {
         const map = await this.firebase.ref(`maps/${context.params.mapId}/`).once('value');
         const username = await this.firebase.ref(`characters/${context.auth.uid}/name`).once('value');
         
-        return this.logFirebaseEvent('system', username.val(), context, {
-            system: snapshot.val(),
-            map: {
-                id: context.params.mapId,
-                name: map.child('name').val(),
-                owner: map.child('owner').val(),
-                type: map.child('type').val(),
-            }
-        })
+        if (!isNaN(Number(snapshot.key))) {
+            return this.logFirebaseEvent('system', username.val(), context, {
+                system: snapshot.val(),
+                map: {
+                    id: context.params.mapId,
+                    name: map.child('name').val(),
+                    owner: map.child('owner').val(),
+                    type: map.child('type').val(),
+                }
+            });
+        }
     }
 
     public onMapEvent = async(snapshot: database.DataSnapshot, context?: EventContext) => {
@@ -65,5 +63,4 @@ export default class StatisticsHandlers {
             }
         });
     }
-
 }

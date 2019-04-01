@@ -1,4 +1,4 @@
-import { DiscordBaseUri, DiscordRedirect } from '../config/config';
+import { DiscordBaseUri, DiscordRedirect } from '../config/constants';
 import { ErrorResponse } from 'node-esi-stackdriver';
 import fetch, { Response } from 'node-fetch';
 import { GuildMember, PatchGuildMember, GuildRole, Guild, AddGuildMember, Tokens } from '../../../models/Discord';
