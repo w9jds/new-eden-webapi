@@ -99,7 +99,7 @@ const verifyScopes = (scopes: string[], permissions: Permissions, h: ResponseToo
 
 const buildRegisterScopes = (request: Request): string => {
     if (request.query['scopes']) {
-        return validateScopes(request.query['scopes']).join('%20');
+        return validateScopes(<string>request.query.scopes).join('%20');
     }
 
     return encodeURIComponent(defaultScopes.join(' '));
@@ -121,19 +121,19 @@ export default class Authentication {
     constructor(private firebase: database.Database, private auth: auth.Auth) {}
 
     public loginHandler = (request: Request, h: ResponseToolkit) => {
-        if (!request.query['redirect_to']) {
+        if (!request.query.redirect_to) {
             throw badRequest('Invalid Request', 'redirect_to parameter is required.');
         }
 
-        if (!isValidSessionType(request.query['response_type'])) {
+        if (!isValidSessionType(<string>request.query.response_type)) {
             throw badRequest('Invalid Request', 'valid type parameter is required.');
         }
 
         let cipherText = encryptState({
             aud: request.info.host,
-            response_type: request.query['response_type'],
-            scopes: validateScopes(request.query['scopes']),
-            redirect: decodeURI(request.query['redirect_to'])
+            response_type: request.query.response_type,
+            scopes: validateScopes(<string>request.query.scopes),
+            redirect: decodeURI(<string>request.query.redirect_to)
         });
 
         return h.redirect(`https://login.eveonline.com/oauth/authorize?response_type=code&redirect_uri=${LoginRedirect}`
@@ -149,12 +149,12 @@ export default class Authentication {
             domain: 'new-eden.io',
             path: '/'
         });
-        return h.redirect(request.query['redirect_to']);
+        return h.redirect(<string>request.query.redirect_to);
     }
 
     public loginCallbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
-        let state: State = decryptState(request.query['state']) as State;
-        let tokens = await login(request.query['code'], LoginClientId, LoginSecret);
+        let state: State = decryptState(request.query.state) as State;
+        let tokens = await login(<string>request.query.code, LoginClientId, LoginSecret);
         let verification = await verify(tokens.token_type, tokens.access_token);
         let character: database.DataSnapshot = await this.getCharacter(verification.CharacterID);
 
@@ -181,20 +181,19 @@ export default class Authentication {
     }
 
     public registerHandler = (request: Request, h: ResponseToolkit) => {
-
         if (!request.query['redirect_to']) {
             throw badRequest('Invalid Request, redirect_to parameter is required.');
         }
 
-        if (!isValidSessionType(request.query['response_type'])) {
+        if (!isValidSessionType(<string>request.query.response_type)) {
             throw badRequest('Invalid Request, valid type parameter is required.');
         }
 
         let cipherText = encryptState({
             aud: request.info.host,
             type: RequestType.REGISTER,
-            response_type: request.query['response_type'],
-            redirect: decodeURI(request.query['redirect_to'])
+            response_type: request.query.response_type,
+            redirect: decodeURI(<string>request.query.redirect_to)
         });
 
         return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}`
@@ -203,7 +202,7 @@ export default class Authentication {
 
     public registerCallbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
         const state: State = decryptState(request.query['state']) as State;
-        const tokens = await login(request.query['code'], RegisterClientId, RegisterSecret);
+        const tokens = await login(<string>request.query.code, RegisterClientId, RegisterSecret);
         const verification = await verify(tokens.token_type, tokens.access_token);
         const character: database.DataSnapshot = await this.getCharacter(verification.CharacterID);
 
@@ -264,13 +263,13 @@ export default class Authentication {
             });
         }
 
-        return h.redirect(`/auth/register?redirect_to=${decodeURIComponent(request.query['redirect_to'])}`
+        return h.redirect(`/auth/register?redirect_to=${decodeURIComponent(<string>request.query.redirect_to)}`
             + `&response_type=none&scopes=${state.scopes.join('%20')}`);
     }
 
     public addCharacterHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
         let authorization = request.auth.credentials.user as Payload;
-        if (!request.query['redirect_to']) {
+        if (!request.query.redirect_to) {
             throw badRequest('Invalid Request, redirect_to parameter is required.');
         }
         if (authorization.aud !== request.info.host) {
@@ -286,7 +285,7 @@ export default class Authentication {
             type: RequestType.ADD_CHARACTER,
             aud: request.info.host,
             accountId: authorization.accountId,
-            redirect: decodeURIComponent(request.query['redirect_to'])
+            redirect: decodeURIComponent(<string>request.query.redirect_to)
         });
         return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}`
             + `&client_id=${RegisterClientId}&scope=${buildRegisterScopes(request)}&state=${cipherText}`);
@@ -297,7 +296,7 @@ export default class Authentication {
             throw badRequest('Invalid request, scopes parameter is required.');
         }
 
-        let scopes: string[] = decodeURIComponent(request.query['scopes']).split(' ');
+        let scopes: string[] = decodeURIComponent(<string>request.query.scopes).split(' ');
         let authorization = request.auth.credentials.user as Payload;
         let characterId: string | number = request.params.userId || authorization.mainId;
         let profile: database.DataSnapshot = await this.getProfile(authorization.accountId);

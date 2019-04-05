@@ -1,11 +1,11 @@
 import * as moment from 'moment';
 import { database } from 'firebase-admin';
 import { Request, ResponseToolkit, ResponseObject } from 'hapi';
-import { DiscordClientId, DiscordRedirect, AccountsOrigin, DiscordScopes } from '../config/config';
+import { DiscordClientId, DiscordRedirect, AccountsOrigin, DiscordScopes, DiscordApiBase } from '../config/config';
 import { encryptState, decryptState } from './auth';
-import { Payload } from '../models/payload';
+import { Payload } from '../../models/payload';
 import { validate, getCurrentUser } from '../lib/discord';
-import { Tokens, User } from '../models/discord';
+import { Tokens, DiscordUser } from '../../models/discord';
 
 export default class Discord {
 
@@ -15,7 +15,7 @@ export default class Discord {
         let authorization = request.auth.credentials.user as Payload;
         let cipherText = encryptState(authorization);
 
-        return h.redirect(`https://discordapp.com/api/oauth2/authorize?client_id=${DiscordClientId}`
+        return h.redirect(`${DiscordApiBase}/oauth2/authorize?client_id=${DiscordClientId}`
             + `&redirect_uri=${encodeURIComponent(DiscordRedirect)}&response_type=code&scope=${encodeURIComponent(DiscordScopes.join(' '))}&state=${cipherText}`);
     }
 
@@ -24,9 +24,9 @@ export default class Discord {
             return h.redirect(AccountsOrigin);
         }
 
-        let state: Payload = decryptState(request.query['state']);
-        let tokens: Tokens = await validate(request.query['code']);
-        let user: User = await getCurrentUser(tokens.access_token);
+        let state: Payload = decryptState(request.query.state);
+        let tokens: Tokens = await validate(<string>request.query.code);
+        let user: DiscordUser = await getCurrentUser(tokens.access_token);
 
         this.firebase.ref(`discord/${user.id}`).set({
             id: user.id,

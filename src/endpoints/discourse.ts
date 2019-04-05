@@ -1,5 +1,5 @@
-import * as CryptoJs from 'crypto-js';
 import {verify as Verify, sign} from 'jsonwebtoken';
+import * as CryptoJs from 'crypto-js';
 import * as queryString from 'query-string';
 
 import { ResponseObject } from 'hapi';

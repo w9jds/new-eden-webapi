@@ -9,7 +9,7 @@ import Discord from './endpoints/discord';
 import Api from './endpoints/api';
 
 import { DatabaseConfig, UserAgent } from './config/config';
-import { Payload } from './models/payload';
+import { Payload } from '../models/payload';
 import { Character, Esi } from 'node-esi-stackdriver';
 
 const firebase = admin.initializeApp({
@@ -161,59 +161,6 @@ const createApiRoutes = () => {
         options: {
             auth: 'firebase-auth',
             ...parseState,
-            ...acceptCors
-        }
-    });
-
-    // server.route({
-    //     method: 'GET',
-    //     path: '/character/{userId*}/mail',
-    //     handler: {},
-    //     options: {
-    //         auth: 'firebase-auth',
-    //         ...parseState,
-    //         ...acceptCors
-    //     }
-    // });
-
-    // server.route({
-    //     method: 'GET',
-    //     path: '/character/{userId*}/wallet',
-    //     handler: {},
-    //     options: {
-    //         auth: 'firebase-auth',
-    //         ...parseState,
-    //         ...acceptCors
-    //     }
-    // });
-
-    // server.route({
-    //     method: 'GET',
-    //     path: '/character/{userId*}/skills',
-    //     handler: {},
-    //     options: {
-    //         auth: 'firebase-auth',
-    //         ...parseState,
-    //         ...acceptCors
-    //     }
-    // });
-
-    // server.route({
-    //     method: 'GET',
-    //     path: '/market/{regionId}/orders/{typeId*}',
-    //     handler: api.regionOrdersHandler,
-    //     options: {
-    //         auth: false,
-    //         ...acceptCors
-    //     }
-    // });
-
-    server.route({
-        method: 'POST',
-        path: '/universe/routes/',
-        handler: api.routesHandler,
-        options: {
-            auth: false,
             ...acceptCors
         }
     });
