@@ -50,28 +50,23 @@ const parseState: RouteOptions = {
 
 const firebaseScheme = (_server: Server, options: ServerAuthSchemeOptions) => {
     return {
-        authenticate: (request: Request, h: ResponseToolkit) => {
+        authenticate: async (request: Request, h: ResponseToolkit) => {
             const header = request.headers.authorization;
-
             if (!header || header.split(' ')[0] != 'Bearer') {
                 throw unauthorized();
             }
 
-            return admin.auth().verifyIdToken(header.split(' ')[1]).then((decodedToken: admin.auth.DecodedIdToken) => {
-                if (decodedToken.uid == request.params.userId) {
-                    return admin.database().ref(`characters/${decodedToken.uid}`).once('value');
-                }
-                else {
-                    throw unauthorized('invalid_client: Token is for another user');
-                }
-            }).then((snapshot: admin.database.DataSnapshot) => {
-                return h.authenticated({
-                    credentials: { user: snapshot.val() as Character }
-                });
-            }).catch(error => {
-                throw unauthorized(error);
-            });
+            const decodedToken = await admin.auth().verifyIdToken(header.split(' ')[1]);
+            if (decodedToken.uid != request.params.userId) {
+                throw unauthorized('invalid_client: Token is for another user');
+            }
 
+            const snapshot = await admin.database().ref(`characters/${decodedToken.uid}`).once('value');
+            return h.authenticated({
+                credentials: {
+                    user: snapshot.val() as Character
+                }
+            });
         }
     };
 };
@@ -80,7 +75,6 @@ const jwtScheme = (_server: Server, options: ServerAuthSchemeOptions) => {
     return {
         authenticate: (request: Request, h: ResponseToolkit) => {
             const header = request.headers.authorization;
-
             if ((!header || header.split(' ')[0] != 'Bearer') && !request.state.profile_jwt && !request.state.profile_session) {
                 throw unauthorized();
             }

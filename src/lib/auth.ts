@@ -1,6 +1,6 @@
-import {UserAgent} from '../config/config';
-import fetch, {Response} from 'node-fetch';
-import {ErrorResponse, Logger} from 'node-esi-stackdriver';
+import { UserAgent } from '../config/config';
+import fetch, { Response } from 'node-fetch';
+import { ErrorResponse, Logger } from 'node-esi-stackdriver';
 
 const logging = new Logger('auth', { projectId: 'new-eden-storage-a5c23' });
 const headers = {
@@ -40,22 +40,21 @@ export const login = async (code: string, clientId: string, secret: string): Pro
     return verifyResponse('POST', response);
 }
 
-export const verify = (type: string, token: string): Promise<any> => {
-    return fetch('https://login.eveonline.com/oauth/verify/', {
+export const verify = async (type: string, token: string): Promise<any> => {
+    const response = await fetch('https://login.eveonline.com/oauth/verify/', {
         method: 'GET',
         headers: {
             'Authorization': type + ' ' + token,
             'Host': 'login.eveonline.com',
             ...headers
         }
-    }).then((response: Response) => {
-        if (response.status === 200) {
-            return response.json();
-        }
-        else {
-            throw new Error(`Invalid Login: ${response.status} ${response.body}`);
-        }
     });
+
+    if (response.status === 200) {
+        return response.json();
+    }
+
+    throw new Error(`Invalid Login: ${response.status} ${response.body}`);
 }
 
 export const refresh = async (refreshToken: string, clientId: string, secret: string): Promise<any> => {

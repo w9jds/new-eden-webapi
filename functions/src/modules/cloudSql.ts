@@ -24,8 +24,12 @@ export default class CloudSql {
     private insertMap = `INSERT INTO maps (id, name, owner_id, type) VALUES ($1, $2, $3, $4)`;
     private insertSystem = 'INSERT INTO systems (id, map_id, name, identifier, status) VALUES ($1, $2, $3, $4, $5);';
 
+    // private insertGroup = 'INSERT INTO groups (id, name) VALUES ($1, $2);';
+    // private insertTimer = 'INSERT INTO timers (id, name, );';
+
     private deleteMap = 'DELETE FROM maps WHERE id=$1;';
     private deleteSystem = 'DELETE FROM systems WHERE id=$1 and map_id=$2;';
+
 
     public onSystemEvent = async (snapshot: database.DataSnapshot, context?: EventContext) => {
         const map = await this.firebase.ref(`maps/${context.params.mapId}/`).once('value');

@@ -13,7 +13,7 @@ import { Character, Permissions } from 'node-esi-stackdriver';
 import { Payload, State } from '../../models/payload';
 import { AccountsOrigin, RegisterRedirect, RegisterClientId,
     RegisterSecret, LoginRedirect, LoginClientId, LoginSecret,
-    EveScopes } from '../config/config';
+    EveScopes, DefaultEveScopes, CookieOptions } from '../config/config';
 
 enum RequestType {
     REGISTER = 'register',
@@ -33,11 +33,6 @@ enum ErrorType {
     MISSING_SCOPES = 'missing_scopes'
 
 }
-
-const defaultScopes = [
-    'esi-characters.read_titles.v1',
-    'esi-characters.read_corporation_roles.v1'
-];
 
 export const verifyJwt = (token): Payload => {
     try {
@@ -66,7 +61,7 @@ const validateScopes = (parameter: string): string[] => {
 
     let scopes = decodeURIComponent(parameter).split(' ') || [];
 
-    for (const scope of defaultScopes) {
+    for (const scope of DefaultEveScopes) {
         if (scopes.indexOf(scope) < 0) {
             scopes.push(scope);
         }
@@ -98,11 +93,11 @@ const verifyScopes = (scopes: string[], permissions: Permissions, h: ResponseToo
 }
 
 const buildRegisterScopes = (request: Request): string => {
-    if (request.query['scopes']) {
+    if (request.query.scopes) {
         return validateScopes(<string>request.query.scopes).join('%20');
     }
 
-    return encodeURIComponent(defaultScopes.join(' '));
+    return encodeURIComponent(DefaultEveScopes.join(' '));
 }
 
 const isValidSessionType = (responseType: string): boolean => {
@@ -145,10 +140,7 @@ export default class Authentication {
             throw badRequest('Invalid Request, redirect_to parameter is required.');
         }
 
-        h.unstate('profile_jwt', {
-            domain: 'new-eden.io',
-            path: '/'
-        });
+        h.unstate('profile_jwt', CookieOptions);
         return h.redirect(<string>request.query.redirect_to);
     }
 
@@ -207,17 +199,17 @@ export default class Authentication {
         const character: database.DataSnapshot = await this.getCharacter(verification.CharacterID);
 
         if (!character.exists()) {
-            if (state.type === RequestType.REGISTER) {
-                let token = await this.createNewProfile(state, tokens, verification);
-                return this.redirect(state.redirect, token, state.response_type, h);
-            }
-            if (state.type === RequestType.ADD_CHARACTER) {
-                let character = this.createCharacter(tokens, verification, state.accountId);
-                await Promise.all([
-                    this.createUser(verification),
-                    this.firebase.ref(`characters/${verification.CharacterID}`).set(character)
-                ]);
-                return h.redirect(state.redirect);
+            switch (state.type) {
+                case RequestType.REGISTER:
+                    let token = await this.createNewProfile(state, tokens, verification);
+                    return this.redirect(state.redirect, token, state.response_type, h);
+                case RequestType.ADD_CHARACTER:
+                    let character = this.createCharacter(tokens, verification, state.accountId);
+                    await Promise.all([
+                        this.createUser(verification),
+                        this.firebase.ref(`characters/${verification.CharacterID}`).set(character)
+                    ]);
+                    return h.redirect(state.redirect);
             }
         }
 
@@ -249,18 +241,18 @@ export default class Authentication {
 
         if (character.hasChild('sso')) {
             let permissions = character.child('sso').val() as Permissions;
-            permissions.scope.split(' ').forEach(scope => {
+            for (let scope of permissions.scope.split(' ')) {
                 if (state.scopes.indexOf(scope) < 0) {
                     state.scopes.push(scope);
                 }
-            });
+            }
         }
         else {
-            defaultScopes.forEach(scope => {
+            for (let scope of DefaultEveScopes) {
                 if (state.scopes.indexOf(scope) < 0) {
                     state.scopes.push(scope);
                 }
-            });
+            }
         }
 
         return h.redirect(`/auth/register?redirect_to=${decodeURIComponent(<string>request.query.redirect_to)}`
@@ -292,7 +284,7 @@ export default class Authentication {
     }
 
     public verifyHandler = async (request: Request, h: ResponseToolkit) => {
-        if (!request.query['scopes']) {
+        if (!request.query.scopes) {
             throw badRequest('Invalid request, scopes parameter is required.');
         }
 
@@ -375,26 +367,20 @@ export default class Authentication {
     }
 
     private redirect = (uri: string, token: string, type: string, h: ResponseToolkit): ResponseObject => {
-        if (type === SessionType.NONE) {
-            return h.redirect(uri);
-        }
-        if (type === SessionType.TOKEN) {
-            return h.redirect(`${uri}#${token}`)
-        }
-        if (type === SessionType.PERSISTENT) {
-            h.state('profile_jwt', token, {
-                domain: 'new-eden.io',
-                path: '/',
-                ttl: 1000 * 60 * 60 * 24 * 365 * 10
-            });
-            return h.redirect(`${uri}`);
-        }
-        if (type === SessionType.SESSION) {
-            h.state('profile_jwt', token, {
-                domain: 'new-eden.io',
-                path: '/'
-            });
-            return h.redirect(`${uri}`);
+        switch(type) {
+            case SessionType.NONE:
+                return h.redirect(uri);
+            case SessionType.TOKEN:
+                return h.redirect(`${uri}#${token}`)
+            case SessionType.PERSISTENT:
+                h.state('profile_jwt', token, {
+                    ...CookieOptions,
+                    ttl: 1000 * 60 * 60 * 24 * 365 * 10
+                });
+                return h.redirect(`${uri}`);
+            case SessionType.SESSION:
+                h.state('profile_jwt', token, CookieOptions);
+                return h.redirect(`${uri}`);
         }
     }
 
@@ -403,7 +389,8 @@ export default class Authentication {
 
         await Promise.all([
             this.createUser(verification),
-            this.firebase.ref(`characters/${verification.CharacterID}`).set(this.createCharacter(tokens, verification, accountId)),
+            this.firebase.ref(`characters/${verification.CharacterID}`)
+                .set(this.createCharacter(tokens, verification, accountId)),
             this.firebase.ref(`users/${accountId}`).set({
                 id: accountId,
                 mainId: verification.CharacterID,

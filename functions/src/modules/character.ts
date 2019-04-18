@@ -1,5 +1,5 @@
 import * as admin from 'firebase-admin';
-import { database, EventContext } from 'firebase-functions';
+import { database, EventContext, Change } from 'firebase-functions';
 
 import { UserAgent } from '../config/constants';
 import { Esi, Title, Roles, Titles } from 'node-esi-stackdriver';

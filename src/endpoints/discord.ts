@@ -12,8 +12,8 @@ export default class Discord {
     constructor(private firebase: database.Database) { }
 
     public loginHandler = (request: Request, h: ResponseToolkit): ResponseObject => {
-        let authorization = request.auth.credentials.user as Payload;
-        let cipherText = encryptState(authorization);
+        const authorization = request.auth.credentials.user as Payload;
+        const cipherText = encryptState(authorization);
 
         return h.redirect(`${DiscordApiBase}/oauth2/authorize?client_id=${DiscordClientId}`
             + `&redirect_uri=${encodeURIComponent(DiscordRedirect)}&response_type=code&scope=${encodeURIComponent(DiscordScopes.join(' '))}&state=${cipherText}`);
@@ -24,9 +24,9 @@ export default class Discord {
             return h.redirect(AccountsOrigin);
         }
 
-        let state: Payload = decryptState(request.query.state);
-        let tokens: Tokens = await validate(<string>request.query.code);
-        let user: DiscordUser = await getCurrentUser(tokens.access_token);
+        const state: Payload = decryptState(request.query.state);
+        const tokens: Tokens = await validate(<string>request.query.code);
+        const user: DiscordUser = await getCurrentUser(tokens.access_token);
 
         this.firebase.ref(`discord/${user.id}`).set({
             id: user.id,

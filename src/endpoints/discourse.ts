@@ -40,12 +40,11 @@ export default class Discourse {
     }
 
     public callbackHandler = async (request, h): Promise<ResponseObject> => {
-        let tokens = await login(request.query.code, ForumClientId, ForumSecret);
-        let verification = await verify(tokens.token_type, tokens.access_token);
-        let character = await this.esi.getCharacter(verification.CharacterID);
-        let state = verifyJwt(request.query.state);
-
-        let query = {
+        const tokens = await login(request.query.code, ForumClientId, ForumSecret);
+        const verification = await verify(tokens.token_type, tokens.access_token);
+        const character = await this.esi.getCharacter(verification.CharacterID);
+        const state = verifyJwt(request.query.state);
+        const query = {
             email: `${verification.CharacterID}@eveonline.com`,
             nonce: state['sso'].nonce,
             external_id: verification.CharacterID,
