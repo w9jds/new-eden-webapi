@@ -11,9 +11,12 @@ import { badRequest, unauthorized } from 'boom';
 import { login, verify, revoke } from '../lib/auth';
 import { Character, Permissions } from 'node-esi-stackdriver';
 import { Payload, State } from '../../models/payload';
-import { AccountsOrigin, RegisterRedirect, RegisterClientId,
+import { CorporationConfig } from '../../models/Corporation';
+import { 
+    AccountsOrigin, RegisterRedirect, RegisterClientId,
     RegisterSecret, LoginRedirect, LoginClientId, LoginSecret,
-    EveScopes, DefaultEveScopes, CookieOptions } from '../config/config';
+    EveScopes, DefaultEveScopes, CookieOptions 
+} from '../config/config';
 
 enum RequestType {
     REGISTER = 'register',
@@ -76,7 +79,8 @@ const validateScopes = (parameter: string): string[] => {
     return scopes;
 }
 
-const verifyScopes = (scopes: string[], permissions: Permissions, h: ResponseToolkit): string[] => {
+const verifyScopes = (scopes: string[], character: database.DataSnapshot, settings: database.DataSnapshot, h: ResponseToolkit): string[] => {
+    const permissions: Permissions = character.child('sso').val();
     let current = permissions ? permissions.scope.split(' ') : [];
 
     if (!current) {
@@ -84,6 +88,14 @@ const verifyScopes = (scopes: string[], permissions: Permissions, h: ResponseToo
     }
 
     let missing = scopes.filter(scope => current.indexOf(scope) < 0);
+
+    if (settings && settings.exists()) {
+        const config: CorporationConfig = settings.val();
+
+        if (config.enforceScopes === true) {
+            missing.concat(config.scopes.filter(scope => current.indexOf(scope) < 0));
+        }
+    }
 
     if (missing.length > 0) {
         return missing;
@@ -145,19 +157,19 @@ export default class Authentication {
     }
 
     public loginCallbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
-        let state: State = decryptState(request.query.state) as State;
-        let tokens = await login(<string>request.query.code, LoginClientId, LoginSecret);
-        let verification = await verify(tokens.token_type, tokens.access_token);
-        let character: database.DataSnapshot = await this.getCharacter(verification.CharacterID);
+        const state: State = decryptState(request.query.state) as State;
+        const tokens = await login(<string>request.query.code, LoginClientId, LoginSecret);
+        const verification = await verify(tokens.token_type, tokens.access_token);
+        const character: database.DataSnapshot = await this.getCharacter(verification.CharacterID);
 
         if (!character.exists()) {
             return h.redirect(`${AccountsOrigin}?type=character_not_found&redirect_to=${state.redirect}`
                 + `&scopes=${state.scopes.join('%20')}`);
         }
 
-        let profile: database.DataSnapshot = await this.getProfile(character.child('accountId').val());
-        let token = this.buildProfileToken(state.aud, profile.key, profile.child('mainId').val());
-        let missingScopes = verifyScopes(state.scopes, character.child('sso').val() as Permissions, h);
+        const profile: database.DataSnapshot = await this.getProfile(character.child('accountId').val());
+        const token = this.buildProfileToken(state.aud, profile.key, profile.child('mainId').val());
+        const missingScopes = verifyScopes(state.scopes, character, null, h);
 
         if (missingScopes) {
             let cipherText = encryptState({
@@ -165,6 +177,7 @@ export default class Authentication {
                 accountId: character.child('accountId').val(),
                 scopes: missingScopes
             });
+
             return this.redirect(`${AccountsOrigin}?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}`
                 + `&redirect=${state.redirect}&state=${cipherText}`, token, state.response_type, h);
         }
@@ -288,16 +301,16 @@ export default class Authentication {
             throw badRequest('Invalid request, scopes parameter is required.');
         }
 
-        let scopes: string[] = decodeURIComponent(<string>request.query.scopes).split(' ');
-        let authorization = request.auth.credentials.user as Payload;
-        let characterId: string | number = request.params.userId || authorization.mainId;
-        let profile: database.DataSnapshot = await this.getProfile(authorization.accountId);
+        const scopes: string[] = decodeURIComponent(<string>request.query.scopes).split(' ');
+        const authorization = request.auth.credentials.user as Payload;
+        const characterId: string | number = request.params.userId || authorization.mainId;
+        const profile: database.DataSnapshot = await this.getProfile(authorization.accountId);
 
         if (!profile.exists()) {
             throw badRequest(`Invalid request, profile doesn't exist!`);
         }
 
-        let character: database.DataSnapshot = await this.getCharacter(characterId);
+        const character: database.DataSnapshot = await this.getCharacter(characterId);
         if (!character.exists()) {
             return h.response({
                 error: ErrorType.CHARACTER_NOT_FOUND,
@@ -309,9 +322,10 @@ export default class Authentication {
             throw unauthorized('Character not part of provided profile!');
         }
 
-        let missingScopes = verifyScopes(scopes, character.child('sso').val() as Permissions, h);
+        const corpConfig = await this.getCorpConfig(character.child('corpId').val());
+        const missingScopes = verifyScopes(scopes, character, corpConfig, h);
         if (missingScopes && missingScopes.length > 0) {
-            let cipherText = encryptState({
+            const cipherText = encryptState({
                 mainId: character.key,
                 accountId: character.child('accountId').val(),
                 scopes: missingScopes
@@ -345,13 +359,14 @@ export default class Authentication {
         };
     }
 
-    private getCharacter = (characterId: number | string): Promise<database.DataSnapshot> => {
-        return this.firebase.ref(`characters/${characterId}`).once('value');
-    }
+    private getCharacter = (characterId: number | string): Promise<database.DataSnapshot> =>
+        this.firebase.ref(`characters/${characterId}`).once('value');
 
-    private getProfile = (profileId: number | string): Promise<database.DataSnapshot> => {
-        return this.firebase.ref(`users/${profileId}`).once('value');
-    }
+    private getProfile = (profileId: number | string): Promise<database.DataSnapshot> =>
+        this.firebase.ref(`users/${profileId}`).once('value');
+
+    private getCorpConfig = (corpId: number | string): Promise<database.DataSnapshot> =>
+        this.firebase.ref(`corporations/configs/${corpId}`).once('value');
 
     private createUser = (verification): Promise<auth.UserRecord> => {
         let user = {

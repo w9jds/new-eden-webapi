@@ -5,11 +5,18 @@ export interface User {
     name: string;
 }
 
+
 export interface UserAccess {
     read: boolean;
     write: boolean;
     name?: string;
     type: 'character' | 'corporation' | 'alliance';
+}
+
+export interface CharacterRoles {
+    roles?: string[];
+    roles_at_hq?: string[];
+    roles_at_other?: string[];
 }
 
 export interface Account {

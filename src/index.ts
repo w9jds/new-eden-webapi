@@ -11,6 +11,7 @@ import Api from './endpoints/api';
 import { DatabaseConfig, UserAgent } from './config/config';
 import { Payload } from '../models/payload';
 import { Character, Esi } from 'node-esi-stackdriver';
+import Corporation from './endpoints/corp.js';
 
 const firebase = admin.initializeApp({
     credential: admin.credential.cert(cert as admin.ServiceAccount),
@@ -48,53 +49,75 @@ const parseState: RouteOptions = {
     }
 }
 
-const firebaseScheme = (_server: Server, options: ServerAuthSchemeOptions) => {
-    return {
-        authenticate: async (request: Request, h: ResponseToolkit) => {
-            const header = request.headers.authorization;
-            if (!header || header.split(' ')[0] != 'Bearer') {
+const firebaseScheme = (_server: Server, options: ServerAuthSchemeOptions) => ({
+    authenticate: async (request: Request, h: ResponseToolkit) => {
+        const header = request.headers.authorization;
+        if (!header || header.split(' ')[0] != 'Bearer') {
+            throw unauthorized();
+        }
+
+        const decodedToken = await admin.auth().verifyIdToken(header.split(' ')[1]);
+        if (decodedToken.uid != request.params.userId) {
+            throw unauthorized('invalid_client: Token is for another user');
+        }
+
+        const snapshot = await admin.database().ref(`characters/${decodedToken.uid}`).once('value');
+        return h.authenticated({
+            credentials: {
+                user: snapshot.val() as Character
+            }
+        });
+    }
+})
+
+const directorScheme = (_server: Server, options: ServerAuthSchemeOptions) => ({
+    authenticate: async (request: Request, h: ResponseToolkit) => {
+        const header = request.headers.authorization;
+        if (!header || header.split(' ')[0] != 'Bearer') {
+            throw unauthorized();
+        }
+
+        const decodedToken = await admin.auth().verifyIdToken(header.split(' ')[1]);
+        const snapshot = await admin.database().ref(`characters/${decodedToken.uid}`).once('value');
+        const character: Character = snapshot.val();
+        if (+request.params.corpId != character.corpId) {
+            throw unauthorized('invalid_corp: User is not in this corp');
+        }
+
+        if (!snapshot.hasChild('roles') || !snapshot.hasChild('roles/roles') || character.roles.roles.indexOf('Director') < 0) {
+            throw unauthorized('invalid_user: User is not a director');
+        }
+
+        return h.authenticated({
+            credentials: {
+                user: character
+            }
+        });
+    }
+})
+
+const jwtScheme = (_server: Server, options: ServerAuthSchemeOptions) => ({
+    authenticate: (request: Request, h: ResponseToolkit) => {
+        const header = request.headers.authorization;
+        if ((!header || header.split(' ')[0] != 'Bearer') && !request.state.profile_jwt && !request.state.profile_session) {
+            throw unauthorized();
+        }
+
+        try {
+            const payload = header && header.split(' ')[1] ? header.split(' ')[1] : request.state.profile_jwt || request.state.profile_session;
+            const token: Payload = verifyJwt(payload);
+
+            if (token && token.aud) {
+                return h.authenticated({ credentials: { user: token } });
+            } else {
                 throw unauthorized();
             }
-
-            const decodedToken = await admin.auth().verifyIdToken(header.split(' ')[1]);
-            if (decodedToken.uid != request.params.userId) {
-                throw unauthorized('invalid_client: Token is for another user');
-            }
-
-            const snapshot = await admin.database().ref(`characters/${decodedToken.uid}`).once('value');
-            return h.authenticated({
-                credentials: {
-                    user: snapshot.val() as Character
-                }
-            });
         }
-    };
-};
-
-const jwtScheme = (_server: Server, options: ServerAuthSchemeOptions) => {
-    return {
-        authenticate: (request: Request, h: ResponseToolkit) => {
-            const header = request.headers.authorization;
-            if ((!header || header.split(' ')[0] != 'Bearer') && !request.state.profile_jwt && !request.state.profile_session) {
-                throw unauthorized();
-            }
-
-            try {
-                const payload = header && header.split(' ')[1] ? header.split(' ')[1] : request.state.profile_jwt || request.state.profile_session;
-                const token: Payload = verifyJwt(payload);
-
-                if (token && token.aud) {
-                    return h.authenticated({ credentials: { user: token } });
-                } else {
-                    throw unauthorized();
-                }
-            }
-            catch(error) {
-                throw unauthorized(error);
-            }
+        catch(error) {
+            throw unauthorized(error);
         }
-    };
-};
+    }
+})
 
 const init = async (): Promise<Server> => {
     const isProd: boolean = process.env.NODE_ENV == 'production';
@@ -134,6 +157,7 @@ const init = async (): Promise<Server> => {
 
     createApiRoutes();
     createAuthRoutes();
+    createCorpRoutes();
     createDiscordRoutes();
     createDiscourseRoutes();
 
@@ -154,6 +178,24 @@ const createApiRoutes = () => {
         handler: api.waypointHandler,
         options: {
             auth: 'firebase-auth',
+            ...parseState,
+            ...acceptCors
+        }
+    });
+}
+
+const createCorpRoutes = () => {
+    const corp = new Corporation(firebase.database());
+    
+    server.auth.scheme('director', directorScheme);
+    server.auth.strategy('firebase-director', 'director');
+    
+    server.route({
+        method: 'GET',
+        path: '/corp/{corpId}/members/',
+        handler: corp.membersHandler,
+        options: {
+            auth: 'firebase-director',
             ...parseState,
             ...acceptCors
         }

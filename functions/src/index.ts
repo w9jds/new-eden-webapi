@@ -28,8 +28,6 @@ export const onAllianceUpdate = database.ref('characters/{userId}/allianceId')
     .onUpdate(locations.onAffiliationsUpdate);
 export const onCorpUpdate = database.ref('characters/{userId}/corpId')
     .onUpdate(locations.onAffiliationsUpdate);
-// export const onHashChanged = database.ref('characters/{characterId}/hash')
-//     .onUpdate(character.onHashChange);
 export const onCharacterCreate = database.ref('characters/{characterId}')
     .onCreate(character.onNewCharacter);
 export const onCharacterLogin = database.ref('characters/{characterId}/sso')
@@ -62,8 +60,6 @@ export const onTitlesCreated = database.ref('characters/{userId}/titles')
     .onCreate(discord.onTitlesCreate);
 export const onMainCharacterUpdated = database.ref('users/{userId}/mainId')
     .onUpdate(discord.onMainCharacterUpdated);
-export const onCharacterNameUpdated = database.ref(`characters/{userId}/name`)
-    .onUpdate(discord.onCharacterNameChanged)
 
 /**
  * Event Managers
@@ -92,3 +88,10 @@ export const onSystemEventDeleted = database.ref('maps/{mapId}/systems/{systemId
     .onDelete(onSystemEvent)
 export const onStatisticCreate = database.ref('statistics/{eventId}')
     .onCreate(statistics.onNewAction);
+
+// export const onLocationDelete = database.ref('locations/{userId')
+//     .onDelete(locations.onLocationDeleted);
+// export const onLocationCreate = database.ref('locations/{userId}')
+//     .onCreate(locations.onLocationCreated);
+// export const onLocationUpdated = database.ref('locations/{userId}')
+//     .onCreate(locations.onLocationUpdated);

@@ -11,21 +11,24 @@
   },
   "main": "lib/functions/src/index.js",
   "dependencies": {
-    "bluebird": "^3.5.3",
+    "bluebird": "^3.5.4",
     "date-fns": "^2.0.0-alpha.26",
-    "firebase-admin": "~7.2.0",
-    "firebase-functions": "^2.2.1",
+    "firebase-admin": "~7.3.0",
+    "firebase-functions": "^2.3.0",
     "node-esi-stackdriver": "^1.0.28",
     "node-fetch": "^2.3.0",
-    "pg": "^7.9.0",
+    "pg": "^7.10.0",
     "tslib": "^1.9.3"
   },
   "devDependencies": {
     "@types/bluebird": "^3.5.26",
-    "@types/node-fetch": "^2.1.7",
+    "@types/node-fetch": "^2.3.2",
     "@types/pg": "^7.4.14",
-    "tslint": "^5.14.0",
-    "typescript": "~3.4.1"
+    "tslint": "^5.16.0",
+    "typescript": "~3.4.4"
+  },
+  "engines": {
+    "node": "8"
   },
   "private": true
 }
