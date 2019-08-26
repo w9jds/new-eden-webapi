@@ -1,25 +1,25 @@
 import { database, config, EventContext } from 'firebase-functions';
 import { initializeApp } from 'firebase-admin';
 
+import { Aura } from '../../models/Discord';
 import AuthHandlers from './modules/auth';
 import CharacterHandlers from './modules/character';
 import LocationHandlers from './modules/locations';
 import StatisticsHandlers from './modules/statistics';
 import DiscordHandlers from './modules/discord';
 import AccessLists from './modules/accesslists';
-import { Aura } from '../../models/Discord';
 import CloudSql from './modules/cloudSql';
 
-const firebase = initializeApp();
-const realTime = firebase.database();
+global.app = initializeApp();
+global.firebase = app.database();
 
-const auth = new AuthHandlers(realTime);
-const cloudSql = new CloudSql(realTime);
-const accessLists = new AccessLists(realTime);
-const character = new CharacterHandlers(realTime);
-const locations = new LocationHandlers(realTime);
-const statistics = new StatisticsHandlers(realTime);
-const discord = new DiscordHandlers(realTime, config().aura as Aura);
+const auth = new AuthHandlers();
+const cloudSql = new CloudSql();
+const accessLists = new AccessLists();
+const character = new CharacterHandlers();
+const locations = new LocationHandlers();
+const statistics = new StatisticsHandlers();
+const discord = new DiscordHandlers(config().aura as Aura);
 
 /**
  * Database Data Updates
@@ -32,7 +32,7 @@ export const onCharacterCreate = database.ref('characters/{characterId}')
     .onCreate(character.onNewCharacter);
 export const onCharacterLogin = database.ref('characters/{characterId}/sso')
     .onCreate(character.onCharacterLogin);
-export const onRolesChanged = database.ref('characters/{userId}/roles/roles')
+export const onRolesWrite = database.ref('characters/{userId}/roles/roles')
     .onWrite(auth.onRolesChanged);
 
 /**
@@ -54,10 +54,10 @@ export const onDiscordConnected = database.ref('discord/{userId}')
     .onCreate(discord.onNewAccount);
 export const onDiscordCorpUpdate = database.ref('characters/{userId}/corpId')
     .onUpdate(discord.onCorpUpdate);
-export const onTitlesUpdate = database.ref('characters/{userId}/titles')
-    .onUpdate(discord.onTitlesUpdate);
-export const onTitlesCreated = database.ref('characters/{userId}/titles')
-    .onCreate(discord.onTitlesCreate);
+export const onDiscordTitlesWrite = database.ref('characters/{userId}/titles')
+    .onWrite(discord.onTitlesWrite);
+export const onDiscordMemberForWrite = database.ref('characters/{userId}/memberFor')
+    .onWrite(discord.onMemberForWrite);
 export const onMainCharacterUpdated = database.ref('users/{userId}/mainId')
     .onUpdate(discord.onMainCharacterUpdated);
 
@@ -88,10 +88,3 @@ export const onSystemEventDeleted = database.ref('maps/{mapId}/systems/{systemId
     .onDelete(onSystemEvent)
 export const onStatisticCreate = database.ref('statistics/{eventId}')
     .onCreate(statistics.onNewAction);
-
-// export const onLocationDelete = database.ref('locations/{userId')
-//     .onDelete(locations.onLocationDeleted);
-// export const onLocationCreate = database.ref('locations/{userId}')
-//     .onCreate(locations.onLocationCreated);
-// export const onLocationUpdated = database.ref('locations/{userId}')
-//     .onCreate(locations.onLocationUpdated);

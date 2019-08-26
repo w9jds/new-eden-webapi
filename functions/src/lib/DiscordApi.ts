@@ -44,16 +44,21 @@ export default class DiscordApi {
 
     private request = async <T>(url: string, options): Promise<T | ErrorResponse> => {
         const response: Response = await fetch(url, options);
-
+        
         if (response.status >= 200 && response.status < 300) {
             if (response.status === 204) {
                 return null;
             }
-
+            
             return await response.json() as T;
         }
-
+        
         console.log(await response.text());
+        // if (content.indexOf('retry_after')) {
+        //     const error: { retry_after: number } = JSON.parse(content);
+        //     await this.sleep(error.retry_after)
+        //     return await this.request(url, options);
+        // }
 
         return {
             error: true,
@@ -61,6 +66,10 @@ export default class DiscordApi {
             uri: response.url
         }
     }
+
+    private sleep = (ms: number): Promise<void> => new Promise(resolve => {
+        setTimeout(resolve, ms)
+    })
 
     public getGuildRoles = async (guildId: number | string): Promise<GuildRole[]|ErrorResponse> =>
         this.request<GuildRole[]>(`${DiscordBaseUri}/guilds/${guildId}/roles`, {

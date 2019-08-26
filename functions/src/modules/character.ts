@@ -2,13 +2,13 @@ import * as admin from 'firebase-admin';
 import { database, EventContext, Change } from 'firebase-functions';
 
 import { UserAgent } from '../config/constants';
-import { Esi, Title, Roles, Titles } from 'node-esi-stackdriver';
+import { Esi, Title, Roles } from 'node-esi-stackdriver';
 
 export default class CharacterHandlers {
 
     private esi: Esi;
 
-    constructor(private firebase: admin.database.Database) {
+    constructor() {
         this.esi = new Esi(UserAgent,{
             projectId: 'new-eden-storage-a5c23'
         });
@@ -44,14 +44,16 @@ export default class CharacterHandlers {
             }
 
             if ('titles' in response) {
-                const titles = response as Titles;
+                const titles = response as Title[];
 
                 await ref.update({
-                    titles: titles.titles.map((title: Title) => title.name) || []
+                    titles: titles.reduce((current, title) => {
+                        current[title.title_id] = title.name;
+                        return current;
+                    }, {})
                 });
             }
         }
-
 
         await ref.child('expired_scopes').remove();
         const accountId: admin.database.DataSnapshot = await ref.child('accountId').once('value');
@@ -60,7 +62,7 @@ export default class CharacterHandlers {
 
     private updateFlags = async (accountId: string) => {
         let hasError = false;
-        const characters = await this.firebase.ref('characters')
+        const characters = await firebase.ref('characters')
             .orderByChild('accountId')
             .equalTo(accountId)
             .once('value');
@@ -76,7 +78,7 @@ export default class CharacterHandlers {
         });
 
         if (hasError === false) {
-            return this.firebase.ref(`users/${accountId}`).update({
+            return firebase.ref(`users/${accountId}`).update({
                 errors: false
             });
         }

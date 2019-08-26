@@ -3,11 +3,8 @@ import { EventContext, Change } from 'firebase-functions';
 
 export default class AuthHandlers {
 
-    constructor(private firebase: database.Database) {}
-
     public onRolesChanged = async (change: Change<database.DataSnapshot>, context?: EventContext) => {
         const newRoles = change.after.val() as string[];
-        // const oldRoles = change.before.val() as string[];
 
         if (newRoles && newRoles.indexOf('Director')) {
             await auth().setCustomUserClaims(context.params.userId, {
@@ -25,4 +22,5 @@ export default class AuthHandlers {
             });
         }
     }
+
 }

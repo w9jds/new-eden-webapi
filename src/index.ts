@@ -1,3 +1,4 @@
+import * as os from 'os';
 import * as admin from 'firebase-admin';
 import * as cert from './config/neweden-admin.json';
 import { Server, Request, ResponseToolkit, ServerAuthSchemeOptions, RouteOptions } from 'hapi';
@@ -332,8 +333,25 @@ const createDiscordRoutes = () => {
 
 }
 
-init().then((webApi: Server) => {
-    console.log('Server running at:', webApi.info.uri);
-}).catch(error => {
-    console.log(error);
+const startServerInstance = async () => {
+    try {
+        let webApi = await init();
+
+        console.info('Server running at: ', webApi.info.uri);
+    }
+    catch(error) {
+        console.error(error);
+    }
+}
+
+process.on('uncaughtException', e => {
+    console.log(e);
+    process.exit(1);
 });
+
+process.on('unhandledRejection', e => {
+    console.log(e);
+    process.exit(1);
+});
+
+startServerInstance();

@@ -8,7 +8,7 @@ export default class AccessLists {
 
     private esi: Esi;
 
-    constructor(private firebase: database.Database) {
+    constructor() {
         this.esi = new Esi(UserAgent,{
             projectId: 'new-eden-storage-a5c23'
         });
@@ -18,7 +18,7 @@ export default class AccessLists {
         const map: Map = snapshot.val();
 
         for (const groupId in map.accessList) {
-            return this.firebase.ref(`access_lists/${groupId}/${snapshot.key}`).remove();
+            return firebase.ref(`access_lists/${groupId}/${snapshot.key}`).remove();
         }
     }
 
@@ -26,7 +26,7 @@ export default class AccessLists {
         const map: Map = snapshot.val();
 
         for (const groupId in map.accessList) {
-            return this.firebase.ref(`access_lists/${groupId}/${snapshot.key}`).set({
+            return firebase.ref(`access_lists/${groupId}/${snapshot.key}`).set({
                 read: map.accessList[groupId].read,
                 write: map.accessList[groupId].write
             });
@@ -44,21 +44,21 @@ export default class AccessLists {
             }
         }
 
-        return this.firebase.ref(`access_lists/${context.params.groupId}/${context.params.mapId}`).set({
+        return firebase.ref(`access_lists/${context.params.groupId}/${context.params.mapId}`).set({
             read: snapshot.child('read').val(),
             write: snapshot.child('write').val()
         });
     }
 
-    public onAccessGroupDeleted = (snapshot: database.DataSnapshot, context?: EventContext) => {
-        return this.firebase
+    public onAccessGroupDeleted = (_snapshot: database.DataSnapshot, context?: EventContext) => {
+        return firebase
             .ref(`access_lists/${context.params.groupId}/${context.params.mapId}`)
             .remove();
     }
 
     public onAccessGroupUpdated = async (change: Change<database.DataSnapshot>, context?: EventContext) => {
         if (change.before.val() !== change.after.val()) {
-            return this.firebase
+            return firebase
                 .ref(`access_lists/${context.params.groupId}/${context.params.mapId}/write`)
                 .set(change.after.val());
         }

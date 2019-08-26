@@ -1,6 +1,6 @@
-import * as admin from 'firebase-admin';
-import * as bluebird from 'bluebird';
-import { database, Change, EventContext } from 'firebase-functions';
+import { database } from 'firebase-admin';
+import { map } from 'bluebird';
+import { Change, EventContext } from 'firebase-functions';
 import { Character, ErrorResponse } from 'node-esi-stackdriver';
 import { isBefore } from 'date-fns';
 
@@ -12,17 +12,17 @@ export default class DiscordHandlers {
 
     private api: DiscordApi;
 
-    constructor(private firebase: admin.database.Database, aura: Aura) {
+    constructor(aura: Aura) {
         this.api = new DiscordApi(aura.client_id, aura.client_secret, aura.token);
     }
 
-    private getFirebaseObject = async <T>(reference: admin.database.Reference): Promise<T | null> => {
-        const snapshot: admin.database.DataSnapshot = await reference.once('value');
+    private getFirebaseObject = async <T>(reference: database.Reference): Promise<T | null> => {
+        const snapshot: database.DataSnapshot = await reference.once('value');
         return snapshot.exists() ? snapshot.val() : null;
     }
 
-    private getFirebaseObjects = async <T>(query: admin.database.Reference | admin.database.Query): Promise<T[] | null> => {
-        const snapshot: admin.database.DataSnapshot = await query.once('value');
+    private getFirebaseObjects = async <T>(query: database.Reference | database.Query): Promise<T[] | null> => {
+        const snapshot: database.DataSnapshot = await query.once('value');
 
         if (snapshot.exists()) {
             const contents = snapshot.val();
@@ -33,23 +33,23 @@ export default class DiscordHandlers {
     }
 
     private getAccount = (accountId: string): Promise<Account> =>
-        this.getFirebaseObject<Account>(this.firebase.ref(`users/${accountId}`));
+        this.getFirebaseObject<Account>(firebase.ref(`users/${accountId}`));
 
     private getCharacter = (characterId: number): Promise<Character> =>
-        this.getFirebaseObject<Character>(this.firebase.ref(`characters/${characterId}`));
+        this.getFirebaseObject<Character>(firebase.ref(`characters/${characterId}`));
 
     private getGuild = async (corpId: number): Promise<FirebaseGuild> => {
         const matches = await this.getFirebaseObjects<FirebaseGuild>(
-            this.firebase.ref('guilds').orderByChild('corpId').equalTo(corpId)
+            firebase.ref('guilds').orderByChild('corpId').equalTo(corpId)
         );
         return matches[0];
     }
 
-    private getGuilds = (): Promise<FirebaseGuild[]> => this.getFirebaseObjects(this.firebase.ref('guilds'));
+    private getGuilds = (): Promise<FirebaseGuild[]> => this.getFirebaseObjects(firebase.ref('guilds'));
 
     private getDiscordAccount = async (accountId: string | number): Promise<DiscordAccount> => {
         const matches = await this.getFirebaseObjects<DiscordAccount>(
-            this.firebase.ref('discord').orderByChild('accountId').equalTo(accountId)
+            firebase.ref('discord').orderByChild('accountId').equalTo(accountId)
         );
         return matches[0];
     }
@@ -71,9 +71,19 @@ export default class DiscordHandlers {
         }
 
         if (isMember) {
+            const titles = character.titles ? Object.values(character.titles) : [];
+
             for (const role of roles) {
-                if (role.name === 'Member' || (character.titles && character.titles.indexOf(role.name) > -1)) {
-                    ids.push(role.id);
+                switch(role.name) {
+                    case 'NewBro':
+                        if (!character.memberFor || character.memberFor > 90) break;
+                    case 'Member':
+                        ids.push(role.id);
+                        break;
+                    default:
+                        if (character.titles && titles.indexOf(role.name) > -1) {
+                            ids.push(role.id);
+                        }
                 }
             }
         }
@@ -86,12 +96,12 @@ export default class DiscordHandlers {
 
         if ('error' in response) {
             if (response.statusCode >= 400 && response.statusCode < 500) {
-                await this.firebase.ref(`discord/${account.id}`).remove();
+                await firebase.ref(`discord/${account.id}`).remove();
                 return false;
             }
         }
 
-        await this.firebase.ref(`discord/${account.id}`).update(response)
+        await firebase.ref(`discord/${account.id}`).update(response)
             .catch(error => {
                 console.error(`Error storing updated credentials: `, error);
                 return false;
@@ -132,18 +142,34 @@ export default class DiscordHandlers {
                     if (roles instanceof Array) {
                         const updatedRoles = await this.getRoles(character, guild, roles);
 
-                        patches.push(
-                            this.api.updateGuildMember(guild.id, account.id, {
-                                roles: updatedRoles
-                            })
-                        );
-
-                        console.info(`Updating ${character.name} to roles of ${updatedRoles.join(', ')}`);
-                        return bluebird.map(patches, item => item, { concurrency: 300 });
+                        if (this.arraysEqual(user.roles, updatedRoles) === false) {
+                            patches.push(
+                                this.api.updateGuildMember(guild.id, account.id, {
+                                    roles: updatedRoles
+                                })
+                            );
+    
+                            console.info(`Updating ${character.name} to roles of ${updatedRoles.join(', ')}`);
+                            return await map(patches, item => item, { concurrency: 300 });
+                        }
                     }
                 }
             }
         }
+    }
+
+    private arraysEqual = (left: Array<string>, right: Array<string>) => {
+        if (left === right) return true;
+        if (left.length !== right.length) return false;
+
+        const aSorted = left.sort();
+        const bSorted = right.sort();
+
+        for (let i = 0; i < aSorted.length; ++i) {
+            if (aSorted[i] !== bSorted[i]) return false;
+        }
+
+        return true;
     }
 
     private manageAccount = async (discordAccount: DiscordAccount): Promise<any> => {
@@ -234,11 +260,13 @@ export default class DiscordHandlers {
         await this.updateRolesFromId(context.params.userId);
     }
 
-    public onTitlesUpdate = (_change: Change<database.DataSnapshot>, context?: EventContext) =>
-        this.updateRolesFromId(context.params.userId);
+    public onTitlesWrite = async (change: Change<database.DataSnapshot>, context?: EventContext) => {
+        await this.updateRolesFromId(context.params.userId);
+    }
 
-    public onTitlesCreate = (_snapshot: database.DataSnapshot, context?: EventContext) =>
-        this.updateRolesFromId(context.params.userId);
+    public onMemberForWrite = async (change: Change<database.DataSnapshot>, context?: EventContext) => {
+        await this.updateRolesFromId(context.params.userId);
+    }
 
     public onMainCharacterUpdated = async (change: Change<database.DataSnapshot>, context?: EventContext): Promise<any> => {
         const account: DiscordAccount = await this.getDiscordAccount(context.params.userId);
@@ -255,7 +283,7 @@ export default class DiscordHandlers {
                 }));
             }
 
-            return bluebird.map(patches, item => item, { concurrency: 300 });
+            return map(patches, item => item, { concurrency: 300 });
         }
 
         return;

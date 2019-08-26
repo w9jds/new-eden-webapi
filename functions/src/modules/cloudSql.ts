@@ -11,7 +11,7 @@ enum EventType {
 export default class CloudSql {
     private pgPool: pg.Pool;
 
-    constructor(private firebase: admin.database.Database) {
+    constructor() {
         this.pgPool = new pg.Pool({
             max: 1,
             host: `/cloudsql/${config().postgres.connection}`,
@@ -27,7 +27,7 @@ export default class CloudSql {
     private deleteSystem = 'DELETE FROM systems WHERE id=$1 and map_id=$2;';
 
     public onSystemEvent = async (snapshot: database.DataSnapshot, context?: EventContext) => {
-        const map = await this.firebase.ref(`maps/${context.params.mapId}/`).once('value');
+        const map = await firebase.ref(`maps/${context.params.mapId}/`).once('value');
 
         if (!isNaN(Number(snapshot.key))) {
             switch (context.eventType) {

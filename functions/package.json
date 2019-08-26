@@ -11,21 +11,21 @@
   },
   "main": "lib/functions/src/index.js",
   "dependencies": {
-    "bluebird": "^3.5.4",
-    "date-fns": "^2.0.0-alpha.26",
-    "firebase-admin": "~7.3.0",
-    "firebase-functions": "^2.3.0",
-    "node-esi-stackdriver": "^1.0.28",
-    "node-fetch": "^2.3.0",
-    "pg": "^7.10.0",
-    "tslib": "^1.9.3"
+    "bluebird": "^3.5.5",
+    "date-fns": "^2.0.1",
+    "firebase-admin": "~8.4.0",
+    "firebase-functions": "^3.2.0",
+    "node-esi-stackdriver": "^1.0.29",
+    "node-fetch": "^2.6.0",
+    "pg": "^7.12.1",
+    "tslib": "^1.10.0"
   },
   "devDependencies": {
-    "@types/bluebird": "^3.5.26",
-    "@types/node-fetch": "^2.3.2",
-    "@types/pg": "^7.4.14",
-    "tslint": "^5.16.0",
-    "typescript": "~3.4.4"
+    "@types/bluebird": "^3.5.27",
+    "@types/node-fetch": "^2.5.0",
+    "@types/pg": "^7.11.0",
+    "tslint": "^5.19.0",
+    "typescript": "~3.5.3"
   },
   "engines": {
     "node": "8"

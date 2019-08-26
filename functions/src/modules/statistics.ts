@@ -1,13 +1,9 @@
 import { database, EventContext, config } from 'firebase-functions';
-import * as admin from 'firebase-admin';
 
 import { Action } from '../../../models/Action';
 import { Logger, Severity } from 'node-esi-stackdriver';
 
 export default class StatisticsHandlers {
-
-
-    constructor(private firebase: admin.database.Database) { }
 
     public onNewAction = (snapshot: database.DataSnapshot, context?: EventContext) => {
         const logging = new Logger('functions', { projectId: 'new-eden-storage-a5c23' });
@@ -35,8 +31,8 @@ export default class StatisticsHandlers {
     }
 
     public onSystemEvent = async (snapshot: database.DataSnapshot, context?: EventContext) => {
-        const map = await this.firebase.ref(`maps/${context.params.mapId}/`).once('value');
-        const username = await this.firebase.ref(`characters/${context.auth.uid}/name`).once('value');
+        const map = await firebase.ref(`maps/${context.params.mapId}/`).once('value');
+        const username = await firebase.ref(`characters/${context.auth.uid}/name`).once('value');
         
         if (!isNaN(Number(snapshot.key))) {
             return this.logFirebaseEvent('system', username.val(), context, {
@@ -52,7 +48,7 @@ export default class StatisticsHandlers {
     }
 
     public onMapEvent = async(snapshot: database.DataSnapshot, context?: EventContext) => {
-        const username = await this.firebase.ref(`characters/${context.auth.uid}/name`).once('value');
+        const username = await firebase.ref(`characters/${context.auth.uid}/name`).once('value');
 
         return this.logFirebaseEvent('map', username.val(), context, {
             map: {
