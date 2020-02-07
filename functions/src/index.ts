@@ -5,7 +5,6 @@ import { Aura } from '../../models/Discord';
 import AuthHandlers from './modules/auth';
 import CharacterHandlers from './modules/character';
 import LocationHandlers from './modules/locations';
-import StatisticsHandlers from './modules/statistics';
 import DiscordHandlers from './modules/discord';
 import AccessLists from './modules/accesslists';
 import CloudSql from './modules/cloudSql';
@@ -18,7 +17,6 @@ const cloudSql = new CloudSql();
 const accessLists = new AccessLists();
 const character = new CharacterHandlers();
 const locations = new LocationHandlers();
-const statistics = new StatisticsHandlers();
 const discord = new DiscordHandlers(config().aura as Aura);
 
 /**
@@ -62,29 +60,13 @@ export const onMainCharacterUpdated = database.ref('users/{userId}/mainId')
     .onUpdate(discord.onMainCharacterUpdated);
 
 /**
- * Event Managers
- */
-const onMapEvent = (snapshot: database.DataSnapshot, context?: EventContext) => {
-    return Promise.all([
-        cloudSql.onMapEvent(snapshot, context),
-        statistics.onMapEvent(snapshot, context)
-    ]);
-}
-
-const onSystemEvent = (snapshot: database.DataSnapshot, context?: EventContext) => {
-    return Promise.all([
-        cloudSql.onSystemEvent(snapshot, context),
-        statistics.onSystemEvent(snapshot, context)
-    ]);
-}
-    
+ * Cloud SQL
+ */ 
 export const onMapEventCreated = database.ref('maps/{mapId}')
-    .onCreate(onMapEvent);
+    .onCreate(cloudSql.onMapEvent);
 export const onMapEventDeleted = database.ref('maps/{mapId}')
-    .onDelete(onMapEvent);
+    .onDelete(cloudSql.onMapEvent);
 export const onSystemEventCreated = database.ref('maps/{mapId}/systems/{systemId}')
-    .onCreate(onSystemEvent)
+    .onCreate(cloudSql.onSystemEvent)
 export const onSystemEventDeleted = database.ref('maps/{mapId}/systems/{systemId}')
-    .onDelete(onSystemEvent)
-export const onStatisticCreate = database.ref('statistics/{eventId}')
-    .onCreate(statistics.onNewAction);
+    .onDelete(cloudSql.onSystemEvent)

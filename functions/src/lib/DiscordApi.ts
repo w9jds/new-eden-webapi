@@ -10,7 +10,7 @@ export default class DiscordApi {
     constructor(private clientId: string, private clientSecret: string, token: string) {
         this.headers = {
             'Authorization': `Bot ${token}`,
-            'User-Agent': 'Aura Bot Cloud Functions (https://github.com/w9jds, v1) - Chingy Chonga / Jeremy Shore - w9jds@live.com'
+            'User-Agent': 'Aura Bot Cloud Functions (https://github.com/w9jds, v1) - Jeremy Shore - w9jds@live.com'
         }
     }
 
@@ -20,9 +20,11 @@ export default class DiscordApi {
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: encodeURIComponent(`client_id=${this.clientId}&client_secret=${this.clientSecret}&` + 
-                  `grant_type='refresh_token'&refresh_token=${refreshToken}&redirect_uri=${DiscordRedirect}&` +
-                  `scope=${scope}`)
+            body: encodeURIComponent(
+                `client_id=${this.clientId}&client_secret=${this.clientSecret}&` +
+                `grant_type='refresh_token'&refresh_token=${refreshToken}&redirect_uri=${DiscordRedirect}&` +
+                `scope=${scope}`
+            )
         });
 
         if (response.status >= 200 && response.status < 300) {
@@ -44,15 +46,15 @@ export default class DiscordApi {
 
     private request = async <T>(url: string, options): Promise<T | ErrorResponse> => {
         const response: Response = await fetch(url, options);
-        
+
         if (response.status >= 200 && response.status < 300) {
             if (response.status === 204) {
                 return null;
             }
-            
+
             return await response.json() as T;
         }
-        
+
         console.log(await response.text());
         // if (content.indexOf('retry_after')) {
         //     const error: { retry_after: number } = JSON.parse(content);

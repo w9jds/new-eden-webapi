@@ -12,10 +12,10 @@ import { login, verify, revoke } from '../lib/auth';
 import { Character, Permissions } from 'node-esi-stackdriver';
 import { Payload, State } from '../../models/payload';
 import { CorporationConfig } from '../../models/Corporation';
-import { 
+import {
     AccountsOrigin, RegisterRedirect, RegisterClientId,
     RegisterSecret, LoginRedirect, LoginClientId, LoginSecret,
-    EveScopes, DefaultEveScopes, CookieOptions 
+    EveScopes, DefaultEveScopes, CookieOptions
 } from '../config/config';
 
 enum RequestType {
@@ -81,7 +81,7 @@ const validateScopes = (parameter: string): string[] => {
 
 const verifyScopes = (scopes: string[], character: database.DataSnapshot, settings: database.DataSnapshot, h: ResponseToolkit): string[] => {
     const permissions: Permissions = character.child('sso').val();
-    let current = permissions ? permissions.scope.split(' ') : [];
+    let current = permissions && permissions.scope ? permissions.scope.split(' ') : [];
 
     if (!current) {
         return scopes;
@@ -252,7 +252,7 @@ export default class Authentication {
             throw badRequest('Invalid Request, character not found.');
         }
 
-        if (character.hasChild('sso')) {
+        if (character.hasChild('sso') && character.hasChild('sso/scope')) {
             let permissions = character.child('sso').val() as Permissions;
             for (let scope of permissions.scope.split(' ')) {
                 if (state.scopes.indexOf(scope) < 0) {
@@ -301,10 +301,10 @@ export default class Authentication {
             throw badRequest('Invalid request, scopes parameter is required.');
         }
 
-        const scopes: string[] = decodeURIComponent(<string>request.query.scopes).split(' ');
         const authorization = request.auth.credentials.user as Payload;
         const characterId: string | number = request.params.userId || authorization.mainId;
         const profile: database.DataSnapshot = await this.getProfile(authorization.accountId);
+        const scopes: string[] = decodeURIComponent(<string>request.query.scopes).split(' ');
 
         if (!profile.exists()) {
             throw badRequest(`Invalid request, profile doesn't exist!`);
@@ -420,7 +420,7 @@ export default class Authentication {
     private buildProfileToken = (host: string, accountId: string | number, mainId): string => {
         return sign({
             iss: 'https://api.new-eden.io',
-            sub: 'profile',
+            // sub: () => 'profile',
             aud: host,
             accountId, mainId
         }, process.env.JWT_SECRET_KEY);

@@ -148,7 +148,7 @@ export default class DiscordHandlers {
                                     roles: updatedRoles
                                 })
                             );
-    
+
                             console.info(`Updating ${character.name} to roles of ${updatedRoles.join(', ')}`);
                             return await map(patches, item => item, { concurrency: 300 });
                         }
@@ -239,18 +239,18 @@ export default class DiscordHandlers {
                 return await this.manageAccount(await this.getDiscordAccount(character.accountId));
             }
 
-            console.info(account ? 
-                `${character.name} is not the main of this profile.` : 
+            console.info(account ?
+                `${character.name} is not the main of this profile.` :
                 `Couldn't find discord for ${character.name} with ${profile.id}`
             );
         }
     }
 
-    public onNewAccount = async (snapshot: database.DataSnapshot, context?: EventContext): Promise<any> => 
+    public onNewAccount = async (snapshot: database.DataSnapshot, context?: EventContext): Promise<any> =>
         this.manageAccount(snapshot.val() as DiscordAccount);
 
     /**
-     * Update Discord roles for ALL registered guilds this member belongs to, 
+     * Update Discord roles for ALL registered guilds this member belongs to,
      * and add the user to any guild they may now belong to with the update affiliations
      */
     public onCorpUpdate = async (_change: Change<database.DataSnapshot>, context?: EventContext): Promise<void> => {

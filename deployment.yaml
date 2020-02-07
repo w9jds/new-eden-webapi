@@ -1,15 +1,15 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: new-eden-api
   labels:
-    run: webapi
-  name: webapi
-  namespace: default
+    run: api
+  namespace: webapi
 spec:
   replicas: 1
   selector:
     matchLabels:
-      run: webapi
+      run: api
   strategy:
     rollingUpdate:
       maxSurge: 1
@@ -17,46 +17,25 @@ spec:
     type: RollingUpdate
   template:
     metadata:
-      creationTimestamp: null
       labels:
-        run: webapi
+        run: api
     spec:
       containers:
-      - image: [Docker Image Path Here]
-        imagePullPolicy: IfNotPresent
-        name: webapi
+      - name: api
+        image: us.gcr.io/new-eden-storage-a5c23/chingy-webapi:v1.74
         ports:
         - containerPort: 8000
-          protocol: TCP
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: webapi
-  namespace: default
+  name: api-service
+  namespace: webapi
 spec:
   type: NodePort
   ports:
   - port: 8000
     targetPort: 8000
     protocol: TCP
-    name: https
   selector:
-    run: webapi
----
-apiVersion:  extensions/v1beta1
-kind: Ingress
-metadata:
-  name: new-eden-tls
-  namespace: default
-  annotations:
-    kubernetes.io/ingress.global-static-ip-name: api-neweden-ip
-    # kubernetes.io/ingress.allow-http: false
-spec:
-  tls:
-  - hosts:
-    - api.new-eden.io
-    secretName: godaddy-neweden-tls
-  backend:
-    serviceName: webapi
-    servicePort: https
+    run: api
