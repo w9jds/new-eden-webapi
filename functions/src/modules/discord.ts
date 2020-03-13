@@ -85,7 +85,10 @@ export default class DiscordHandlers {
       for (const role of roles) {
         switch(role.name) {
           case 'NewBro':
-            if (!character.memberFor || character.memberFor > 90) break;
+            if (character.memberFor && character.memberFor <= 90) {
+              ids.push(role.id);
+            }
+            break;
           case 'Member':
             ids.push(role.id);
             break;
