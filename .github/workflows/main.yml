@@ -1,0 +1,24 @@
+name: Build and Deploy
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@master
+      - name: Go to Functions
+        run: cd functions
+      - name: Install Dependencies
+        run: npm install
+      - name: Test Functions
+        uses: w9jds/firebase-action@feature/jdk
+        with:
+          isEmulator: true
+          args: emulators:exec \"npm run test --exit -- --forceExit\"
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
