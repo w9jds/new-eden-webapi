@@ -3,7 +3,6 @@ on:
   push:
     branches:
       - master
-
 jobs:
   build:
     name: Emulate Mocha Tests
@@ -19,6 +18,6 @@ jobs:
         uses: w9jds/firebase-action@feature/jdk
         with:
           isEmulator: true
-          args: emulators:exec \"npm run test --exit -- --forceExit\"
+          args: emulators:exec \"npm run test\"
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
