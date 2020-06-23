@@ -6,7 +6,6 @@ metadata:
     run: api
   namespace: webapi
 spec:
-  replicas: 1
   selector:
     matchLabels:
       run: api
@@ -29,6 +28,8 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    cloud.google.com/load-balancer-type: "Internal"
   name: api-service
   namespace: webapi
 spec:
@@ -39,3 +40,25 @@ spec:
     protocol: TCP
   selector:
     run: api
+---
+apiVersion: networking.gke.io/v1beta2
+kind: ManagedCertificate
+metadata:
+  name: new-eden-tls
+  namespace: webapi
+spec:
+  domains:
+    - api.new-eden.io
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  annotations:
+    networking.gke.io/managed-certificates: new-eden-tls
+    kubernetes.io/ingress.global-static-ip-name: new-eden-ip
+  name: new-eden-ingress
+  namespace: webapi
+spec:
+  backend:
+    serviceName: api-service
+    servicePort: 8000

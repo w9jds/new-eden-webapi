@@ -1,4 +1,4 @@
-import { database, config, EventContext } from 'firebase-functions';
+import { database, config } from 'firebase-functions';
 import { initializeApp } from 'firebase-admin';
 
 import { Aura } from '../../models/Discord';
@@ -23,50 +23,64 @@ const discord = new DiscordHandlers(config().aura as Aura);
  * Database Data Updates
  */
 export const onAllianceUpdate = database.ref('characters/{userId}/allianceId')
-    .onUpdate(locations.onAffiliationsUpdate);
+  .onUpdate(locations.onAffiliationsUpdate);
+
 export const onCorpUpdate = database.ref('characters/{userId}/corpId')
-    .onUpdate(locations.onAffiliationsUpdate);
+  .onUpdate(locations.onAffiliationsUpdate);
+
 export const onCharacterCreate = database.ref('characters/{characterId}')
-    .onCreate(character.onNewCharacter);
+  .onCreate(character.onNewCharacter);
+
 export const onCharacterLogin = database.ref('characters/{characterId}/sso')
-    .onCreate(character.onCharacterLogin);
+  .onCreate(character.onCharacterLogin);
+
 export const onRolesWrite = database.ref('characters/{userId}/roles/roles')
-    .onWrite(auth.onRolesChanged);
+  .onWrite(auth.onRolesChanged);
 
 /**
  * Access Lists
  */
 export const onMapDeleted = database.ref('maps/{mapId}')
-    .onDelete(accessLists.onMapDeleted);
+  .onDelete(accessLists.onMapDeleted);
+
 export const onAccessGroupCreated = database.ref('maps/{mapId}/accesslist/{groupId}')
-    .onCreate(accessLists.onAccessGroupCreated);
+  .onCreate(accessLists.onAccessGroupCreated);
+
 export const onAccessGroupDeleted = database.ref(`maps/{mapId}/accesslist/{groupId}`)
-    .onDelete(accessLists.onAccessGroupDeleted);
+  .onDelete(accessLists.onAccessGroupDeleted);
+
 export const onAccessGroupUpdated = database.ref(`maps/{mapId}/accesslist/{groupId}/write`)
-    .onUpdate(accessLists.onAccessGroupUpdated);
+  .onUpdate(accessLists.onAccessGroupUpdated);
 
 /**
  * Discord Bot Updates
  */
 export const onDiscordConnected = database.ref('discord/{userId}')
-    .onCreate(discord.onNewAccount);
-export const onDiscordCorpUpdate = database.ref('characters/{userId}/corpId')
-    .onUpdate(discord.onCorpUpdate);
+  .onCreate(discord.onNewAccount);
+
+  export const onDiscordCorpUpdate = database.ref('characters/{userId}/corpId')
+  .onUpdate(discord.onCorpUpdate);
+
 export const onDiscordTitlesWrite = database.ref('characters/{userId}/titles')
-    .onWrite(discord.onTitlesWrite);
+  .onWrite(discord.onTitlesWrite);
+
 export const onDiscordMemberForWrite = database.ref('characters/{userId}/memberFor')
-    .onWrite(discord.onMemberForWrite);
+  .onWrite(discord.onMemberForWrite);
+
 export const onMainCharacterUpdated = database.ref('users/{userId}/mainId')
-    .onUpdate(discord.onMainCharacterUpdated);
+  .onUpdate(discord.onMainCharacterUpdated);
 
 /**
  * Cloud SQL
- */ 
+ */
 export const onMapEventCreated = database.ref('maps/{mapId}')
-    .onCreate(cloudSql.onMapEvent);
+  .onCreate(cloudSql.onMapEvent);
+
 export const onMapEventDeleted = database.ref('maps/{mapId}')
-    .onDelete(cloudSql.onMapEvent);
+  .onDelete(cloudSql.onMapEvent);
+
 export const onSystemEventCreated = database.ref('maps/{mapId}/systems/{systemId}')
-    .onCreate(cloudSql.onSystemEvent)
+  .onCreate(cloudSql.onSystemEvent)
+
 export const onSystemEventDeleted = database.ref('maps/{mapId}/systems/{systemId}')
-    .onDelete(cloudSql.onSystemEvent)
+  .onDelete(cloudSql.onSystemEvent)
