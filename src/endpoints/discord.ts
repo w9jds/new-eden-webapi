@@ -3,9 +3,10 @@ import { database } from 'firebase-admin';
 import { Request, ResponseToolkit, ResponseObject } from 'hapi';
 import { DiscordClientId, DiscordRedirect, AccountsOrigin, DiscordScopes, DiscordApiBase } from '../config/config';
 import { encryptState, decryptState } from './auth';
-import { Payload } from '../../models/payload';
 import { validate, getCurrentUser } from '../lib/discord';
-import { Tokens, DiscordUser } from '../../models/discord';
+
+import { Payload } from '../../models/Payload';
+import { Tokens, DiscordUser } from '../../models/Discord';
 
 export default class Discord {
 

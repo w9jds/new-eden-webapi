@@ -11,7 +11,6 @@ import CharacterHandlers from './modules/character';
 import LocationHandlers from './modules/locations';
 import DiscordHandlers from './modules/discord';
 import AccessLists from './modules/accesslists';
-import CloudSql from './modules/cloudSql';
 
 import { updateSystemStatistics } from './modules/statistics';
 
@@ -22,7 +21,6 @@ global.esi = new Esi(UserAgent, {
 });
 
 const auth = new AuthHandlers();
-const cloudSql = new CloudSql();
 const accessLists = new AccessLists();
 const character = new CharacterHandlers();
 const locations = new LocationHandlers();
@@ -33,11 +31,10 @@ const discord = new DiscordHandlers(config().aura as Aura);
  */
 // export const affiliations = pubsub.schedule('*/30 * * * *')
 //   .onRun(context => {
+// });
 
-//   });
-
-export const statistics = pubsub.schedule('0 * * * *')
-  .onRun(updateSystemStatistics);
+// export const statistics = pubsub.schedule('0 * * * *')
+//   .onRun(updateSystemStatistics);
 
 /**
  * Database Data Updates
@@ -89,18 +86,3 @@ export const onDiscordMemberForWrite = database.ref('characters/{userId}/memberF
 
 export const onMainCharacterUpdated = database.ref('users/{userId}/mainId')
   .onUpdate(discord.onMainCharacterUpdated);
-
-/**
- * Cloud SQL
- */
-export const onMapEventCreated = database.ref('maps/{mapId}')
-  .onCreate(cloudSql.onMapEvent);
-
-export const onMapEventDeleted = database.ref('maps/{mapId}')
-  .onDelete(cloudSql.onMapEvent);
-
-export const onSystemEventCreated = database.ref('maps/{mapId}/systems/{systemId}')
-  .onCreate(cloudSql.onSystemEvent)
-
-export const onSystemEventDeleted = database.ref('maps/{mapId}/systems/{systemId}')
-  .onDelete(cloudSql.onSystemEvent)

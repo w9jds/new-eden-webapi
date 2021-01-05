@@ -1,6 +1,6 @@
-import * as os from 'os';
 import * as admin from 'firebase-admin';
 import * as cert from './config/neweden-admin.json';
+
 import { Server, Request, ResponseToolkit, ServerAuthSchemeOptions, RouteOptions } from 'hapi';
 import { unauthorized } from 'boom';
 
@@ -10,7 +10,7 @@ import Discord from './endpoints/discord';
 import Api from './endpoints/api';
 
 import { DatabaseConfig, UserAgent } from './config/config';
-import { Payload } from '../models/payload';
+import { Payload } from '../models/Payload';
 import { Character, Esi } from 'node-esi-stackdriver';
 import Corporation from './endpoints/corp.js';
 
@@ -50,7 +50,7 @@ const parseState: RouteOptions = {
   }
 }
 
-const firebaseScheme = (_server: Server, options: ServerAuthSchemeOptions) => ({
+const firebaseScheme = (_server: Server, _) => ({
   authenticate: async (request: Request, h: ResponseToolkit) => {
     const header = request.headers.authorization;
     if (!header || header.split(' ')[0] != 'Bearer') {
@@ -71,7 +71,7 @@ const firebaseScheme = (_server: Server, options: ServerAuthSchemeOptions) => ({
   }
 })
 
-const directorScheme = (_server: Server, options: ServerAuthSchemeOptions) => ({
+const directorScheme = (_server: Server, _) => ({
   authenticate: async (request: Request, h: ResponseToolkit) => {
     const header = request.headers.authorization;
     if (!header || header.split(' ')[0] != 'Bearer') {
@@ -97,7 +97,7 @@ const directorScheme = (_server: Server, options: ServerAuthSchemeOptions) => ({
   }
 })
 
-const jwtScheme = (_server: Server, options: ServerAuthSchemeOptions) => ({
+const jwtScheme = (_server: Server, _) => ({
   authenticate: (request: Request, h: ResponseToolkit) => {
     const header = request.headers.authorization;
     if ((!header || header.split(' ')[0] != 'Bearer') && !request.state.profile_jwt && !request.state.profile_session) {

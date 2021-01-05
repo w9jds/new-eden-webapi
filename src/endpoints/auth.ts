@@ -1,17 +1,19 @@
 import * as CryptoJs from 'crypto-js';
 import * as moment from 'moment';
-import {verify as Verify, sign} from 'jsonwebtoken';
 import * as atob from 'atob';
 import * as btoa from 'btoa';
 
-import FirebaseUtils from '../utils/firebase';
+import {verify as Verify, sign} from 'jsonwebtoken';
 import { database, auth } from 'firebase-admin';
 import { Request, ResponseToolkit, ResponseObject } from 'hapi';
 import { badRequest, unauthorized } from 'boom';
-import { login, verify, revoke } from '../lib/auth';
 import { Character, Permissions } from 'node-esi-stackdriver';
-import { Payload, State } from '../../models/payload';
+import { login, verify, revoke } from '../lib/auth';
+import FirebaseUtils from '../utils/firebase';
+
+import { Payload, State } from '../../models/Payload';
 import { CorporationConfig } from '../../models/Corporation';
+
 import {
     AccountsOrigin, RegisterRedirect, RegisterClientId,
     RegisterSecret, LoginRedirect, LoginClientId, LoginSecret,
