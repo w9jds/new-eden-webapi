@@ -13,6 +13,7 @@ import DiscordHandlers from './modules/discord';
 import AccessLists from './modules/accesslists';
 
 import { updateSystemStatistics } from './modules/statistics';
+import { clearOldKillMails } from './modules/killMails';
 
 global.app = initializeApp();
 global.firebase = app.database();
@@ -33,8 +34,11 @@ const discord = new DiscordHandlers(config().aura as Aura);
 //   .onRun(context => {
 // });
 
-// export const statistics = pubsub.schedule('0 * * * *')
-//   .onRun(updateSystemStatistics);
+export const statistics = pubsub.schedule('0 * * * *')
+  .onRun(updateSystemStatistics);
+
+export const killsCleanup = pubsub.schedule('0 * * * *')
+  .onRun(clearOldKillMails);
 
 /**
  * Database Data Updates
