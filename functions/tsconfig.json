@@ -1,13 +1,13 @@
 {
   "compilerOptions": {
-    "lib": ["es2017"],
+    "lib": ["es2018"],
     "module": "commonjs",
     "moduleResolution": "node",
     "noImplicitReturns": true,
     "removeComments": true,
     "outDir": "lib",
     "sourceMap": true,
-    "target": "es2017"
+    "target": "es2018"
   },
   "compileOnSave": true,
   "include": [

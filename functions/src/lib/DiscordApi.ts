@@ -15,7 +15,7 @@ export default class DiscordApi {
   }
 
   public refresh = async (refreshToken: string, scope: string): Promise<Tokens | ErrorResponse> => {
-    const response: Response = await fetch('https://discordapp.com/api/oauth2/token', {
+    const response: Response = await fetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'

@@ -1,24 +1,9 @@
 import { Request, ResponseToolkit, ResponseObject } from 'hapi';
 import { database } from 'firebase-admin';
 import { Character } from 'node-esi-stackdriver';
-import { Account, CharacterRoles, DiscordAccount } from '../../models/User';
 
-type MemberAccount = {
-    id: string;
-    mainId: number;
-    discord?: {
-        username: string;
-        discriminator?: string;
-    };
-    characters: Record<number, {
-        id: number;
-        name: string;
-        corpId: number;
-        allianceId?: number;
-        roles?: CharacterRoles;
-        titles?: string[];
-    }>;
-}
+import { MemberAccount } from '../../models/Corporation';
+import { Account, DiscordAccount } from '../../models/User';
 
 export default class Corporation {
 

@@ -2,7 +2,8 @@ import { Request, ResponseToolkit, ResponseObject } from 'hapi';
 import { badRequest } from 'boom';
 import { database } from 'firebase-admin';
 import { Esi, Character } from 'node-esi-stackdriver';
-import { PostBody } from '../../models/routes';
+
+import { PostBody } from '../../models/Routes';
 
 export default class Api {
 
