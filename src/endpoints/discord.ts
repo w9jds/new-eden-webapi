@@ -1,12 +1,12 @@
-import * as moment from 'moment';
 import { database } from 'firebase-admin';
-import { Request, ResponseToolkit, ResponseObject } from 'hapi';
+import { Request, ResponseToolkit, ResponseObject } from '@hapi/hapi';
 import { DiscordClientId, DiscordRedirect, AccountsOrigin, DiscordScopes, DiscordApiBase } from '../config/config';
 import { encryptState, decryptState } from './auth';
 import { validate, getCurrentUser } from '../lib/discord';
 
 import { Payload } from '../../models/Payload';
 import { Tokens, DiscordUser } from '../../models/Discord';
+import { addSeconds } from 'date-fns';
 
 export default class Discord {
 
@@ -29,7 +29,7 @@ export default class Discord {
     const tokens: Tokens = await validate(<string>request.query.code);
     const user: DiscordUser = await getCurrentUser(tokens.access_token);
 
-    this.firebase.ref(`discord/${user.id}`).set({
+    await this.firebase.ref(`discord/${user.id}`).set({
       id: user.id,
       accountId: state.accountId,
       username: user.username,
@@ -39,7 +39,7 @@ export default class Discord {
       email: user.email || null,
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
-      expiresAt: moment().add((tokens.expires_in - 60), 'seconds').valueOf(),
+      expiresAt: addSeconds(new Date(), tokens.expires_in - 60).toISOString(),
       tokenType: tokens.token_type,
       scope: tokens.scope
     });

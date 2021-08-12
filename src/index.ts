@@ -1,11 +1,10 @@
 import * as admin from 'firebase-admin';
 import * as cert from './config/neweden-admin.json';
 
-import { Server, Request, ResponseToolkit, ServerAuthSchemeOptions, RouteOptions } from 'hapi';
+import { Server, Request, ResponseToolkit, RouteOptions } from '@hapi/hapi';
 import { unauthorized } from 'boom';
 
 import Authentication, {verifyJwt} from './endpoints/auth';
-import Discourse from './endpoints/discourse';
 import Discord from './endpoints/discord';
 import Api from './endpoints/api';
 
@@ -118,7 +117,7 @@ const jwtScheme = (_server: Server, _) => ({
       throw unauthorized(error);
     }
   }
-})
+});
 
 const init = async (): Promise<Server> => {
   const isProd: boolean = process.env.NODE_ENV == 'production';
@@ -160,7 +159,6 @@ const init = async (): Promise<Server> => {
   createAuthRoutes();
   createCorpRoutes();
   createDiscordRoutes();
-  createDiscourseRoutes();
 
   await server.start();
 
@@ -287,28 +285,6 @@ const createAuthRoutes = () => {
   });
 }
 
-const createDiscourseRoutes = () => {
-  const discourse = new Discourse(esi);
-
-  server.route({
-    method: 'GET',
-    path: '/discourse/login',
-    handler: discourse.loginHandler,
-    options: {
-      auth: false
-    }
-  });
-
-  server.route({
-    method: 'GET',
-    path: '/discourse/callback',
-    handler: discourse.callbackHandler,
-    options: {
-      auth: false
-    }
-  });
-}
-
 const createDiscordRoutes = () => {
   const discord = new Discord(firebase.database());
 
@@ -330,7 +306,6 @@ const createDiscordRoutes = () => {
       auth: false
     }
   });
-
 }
 
 const startServerInstance = async () => {

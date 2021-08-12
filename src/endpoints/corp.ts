@@ -1,4 +1,4 @@
-import { Request, ResponseToolkit, ResponseObject } from 'hapi';
+import { Request, ResponseToolkit, ResponseObject } from '@hapi/hapi';
 import { database } from 'firebase-admin';
 import { Character } from 'node-esi-stackdriver';
 

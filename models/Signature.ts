@@ -9,5 +9,9 @@ export interface Signature {
   id: string;
   name: string;
   percentage?: string;
+  triggered?: any;
+  cleared?: any;
+  wormholeName?: string;
+  isLogged?: boolean;
 }
 

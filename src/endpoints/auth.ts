@@ -1,13 +1,13 @@
 import * as CryptoJs from 'crypto-js';
-import * as moment from 'moment';
 import * as atob from 'atob';
 import * as btoa from 'btoa';
 
-import {verify as Verify, sign} from 'jsonwebtoken';
+import { addSeconds } from 'date-fns';
+import { verify as Verify, sign } from 'jsonwebtoken';
 import { database, auth } from 'firebase-admin';
-import { Request, ResponseToolkit, ResponseObject } from 'hapi';
+import { Request, ResponseToolkit, ResponseObject } from '@hapi/hapi';
 import { badRequest, unauthorized } from 'boom';
-import { Character, Permissions } from 'node-esi-stackdriver';
+import { Permissions } from 'node-esi-stackdriver';
 import { login, verify, revoke } from '../lib/auth';
 import FirebaseUtils from '../utils/firebase';
 
@@ -19,6 +19,7 @@ import {
     RegisterSecret, LoginRedirect, LoginClientId, LoginSecret,
     EveScopes, DefaultEveScopes, CookieOptions
 } from '../config/config';
+
 
 enum RequestType {
   REGISTER = 'register',
@@ -36,7 +37,6 @@ enum SessionType {
 enum ErrorType {
   CHARACTER_NOT_FOUND = 'character_not_found',
   MISSING_SCOPES = 'missing_scopes'
-
 }
 
 export const verifyJwt = (token): Payload => {
@@ -57,7 +57,6 @@ export const decryptState = state => {
   let bytes = CryptoJs.AES.decrypt(atob(state), process.env.JWT_SECRET_KEY);
   return JSON.parse(bytes.toString(CryptoJs.enc.Utf8));
 }
-
 
 const validateScopes = (parameter: string): string[] => {
   if (!parameter) {
@@ -341,13 +340,22 @@ export default class Authentication {
       }).code(503);
     }
 
+    await profile.child('lastSeen').ref.set(Date.now());
+
+    const token = this.buildProfileToken(authorization.aud, authorization.accountId, characterId);
+
+    h.state('profile_jwt', token, {
+      ...CookieOptions,
+      ttl: 1000 * 60 * 60 * 24 * 365 * 10
+    });
+
     return h.response({
       characterId: characterId,
       token: await this.auth.createCustomToken(characterId.toString())
     });
   }
 
-  private createCharacter = (tokens, verification, accountId): Character => ({
+  private createCharacter = (tokens, verification, accountId) => ({
     id: verification.CharacterID,
     accountId,
     name: verification.CharacterName,
@@ -355,7 +363,7 @@ export default class Authentication {
     sso: {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
-      expiresAt: moment().add((tokens.expires_in - 60), 'seconds').valueOf(),
+      expiresAt: addSeconds(new Date(), tokens.expires_in - 60).toISOString(),
       scope: verification.Scopes
     }
   });

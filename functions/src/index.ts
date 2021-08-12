@@ -1,19 +1,18 @@
-import { database, pubsub, config } from 'firebase-functions';
+import { database, pubsub, config, https } from 'firebase-functions';
 import { initializeApp } from 'firebase-admin';
 
 import { Esi } from 'node-esi-stackdriver';
-import { Aura } from '../../models/Discord';
 
 import { UserAgent, ProjectId } from './config/constants';
 
-import AuthHandlers from './modules/auth';
 import CharacterHandlers from './modules/character';
 import LocationHandlers from './modules/locations';
-import DiscordHandlers from './modules/discord';
 import AccessLists from './modules/accesslists';
 
 import { updateSystemStatistics } from './modules/statistics';
-import { clearOldKillMails } from './modules/killMails';
+import { onRolesChanged, createRefreshTask } from './modules/auth';
+import { signatureUpdated, signatureCreated, signatureDeleted } from './modules/analytics';
+import { onRefreshToken } from './modules/taskHandlers';
 
 global.app = initializeApp();
 global.firebase = app.database();
@@ -21,11 +20,9 @@ global.esi = new Esi(UserAgent, {
   projectId: ProjectId,
 });
 
-const auth = new AuthHandlers();
 const accessLists = new AccessLists();
 const character = new CharacterHandlers();
 const locations = new LocationHandlers();
-const discord = new DiscordHandlers(config().aura as Aura);
 
 /**
  * Scheduled Jobs
@@ -36,9 +33,6 @@ const discord = new DiscordHandlers(config().aura as Aura);
 
 export const statistics = pubsub.schedule('0 * * * *')
   .onRun(updateSystemStatistics);
-
-export const killsCleanup = pubsub.schedule('0 * * * *')
-  .onRun(clearOldKillMails);
 
 /**
  * Database Data Updates
@@ -56,7 +50,19 @@ export const onCharacterLogin = database.ref('characters/{characterId}/sso')
   .onCreate(character.onCharacterLogin);
 
 export const onRolesWrite = database.ref('characters/{userId}/roles/roles')
-  .onWrite(auth.onRolesChanged);
+  .onWrite(onRolesChanged);
+
+/**
+ * Cloud Task Managers
+ */
+export const onCharacterTokens = database.ref('characters/{characterId}/sso')
+  .onWrite(createRefreshTask);
+
+/**
+ * Cloud Task Handlers
+ */
+export const refreshUserToken = https.onRequest(onRefreshToken);
+
 
 /**
  * Access Lists
@@ -74,19 +80,14 @@ export const onAccessGroupUpdated = database.ref(`maps/{mapId}/accesslist/{group
   .onUpdate(accessLists.onAccessGroupUpdated);
 
 /**
- * Discord Bot Updates
+ * Analytics
  */
-export const onDiscordConnected = database.ref('discord/{userId}')
-  .onCreate(discord.onNewAccount);
+export const onSignatureCreated = database.ref('signatures/{ownerId}/{systemId}/{sigId}')
+  .onCreate(signatureCreated);
 
-  export const onDiscordCorpUpdate = database.ref('characters/{userId}/corpId')
-  .onUpdate(discord.onCorpUpdate);
+export const onSignatureUpdated = database.ref('signatures/{ownerId}/{systemId}/{sigId}')
+  .onUpdate(signatureUpdated);
 
-export const onDiscordTitlesWrite = database.ref('characters/{userId}/titles')
-  .onWrite(discord.onTitlesWrite);
+export const onSignatureDeleted = database.ref('signatures/{ownerId}/{systemId}/{sigId}')
+  .onDelete(signatureDeleted);
 
-export const onDiscordMemberForWrite = database.ref('characters/{userId}/memberFor')
-  .onWrite(discord.onMemberForWrite);
-
-export const onMainCharacterUpdated = database.ref('users/{userId}/mainId')
-  .onUpdate(discord.onMainCharacterUpdated);

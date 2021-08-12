@@ -1,5 +1,5 @@
 import * as admin from 'firebase-admin';
-import { database, EventContext, Change } from 'firebase-functions';
+import { database, EventContext } from 'firebase-functions';
 
 import { UserAgent } from '../config/constants';
 import { Esi, Title, Roles } from 'node-esi-stackdriver';
@@ -14,8 +14,10 @@ export default class CharacterHandlers {
     });
   }
 
-  public onNewCharacter = (snapshot: database.DataSnapshot, context?: EventContext) =>
-    this.populateCharacterInfo(context.params.characterId, snapshot.child('sso/accessToken').val(), snapshot.ref);
+  public onNewCharacter = async (snapshot: database.DataSnapshot, context?: EventContext) => {
+    await snapshot.child('createdAt').ref.set(Date.now());
+    return this.populateCharacterInfo(context.params.characterId, snapshot.child('sso/accessToken').val(), snapshot.ref);
+  }
 
   public onCharacterLogin = (snapshot: database.DataSnapshot, context?: EventContext) =>
     this.populateCharacterInfo(context.params.characterId, snapshot.child('accessToken').val(), snapshot.ref.parent);
@@ -36,7 +38,7 @@ export default class CharacterHandlers {
       }
 
       if ('roles' in response) {
-        const roles = response as Roles;
+        const roles = response;
 
         await ref.update({
           roles: roles.roles || null
