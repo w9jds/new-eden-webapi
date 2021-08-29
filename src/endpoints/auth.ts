@@ -6,7 +6,7 @@ import { addSeconds } from 'date-fns';
 import { verify as Verify, sign } from 'jsonwebtoken';
 import { database, auth } from 'firebase-admin';
 import { Request, ResponseToolkit, ResponseObject } from '@hapi/hapi';
-import { badRequest, unauthorized } from 'boom';
+import { badRequest, unauthorized } from '@hapi/boom';
 import { Permissions } from 'node-esi-stackdriver';
 import { login, verify, revoke } from '../lib/auth';
 import FirebaseUtils from '../utils/firebase';
