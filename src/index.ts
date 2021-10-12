@@ -2,7 +2,7 @@ import * as admin from 'firebase-admin';
 import * as cert from './config/neweden-admin.json';
 
 import { Server, Request, ResponseToolkit, RouteOptions } from '@hapi/hapi';
-import { unauthorized } from 'boom';
+import { unauthorized } from '@hapi/boom';
 
 import Authentication, {verifyJwt} from './endpoints/auth';
 import Discord from './endpoints/discord';
@@ -12,6 +12,7 @@ import { DatabaseConfig, UserAgent } from './config/config';
 import { Payload } from '../models/Payload';
 import { Character, Esi } from 'node-esi-stackdriver';
 import Corporation from './endpoints/corp.js';
+import { isArray } from 'util';
 
 const firebase = admin.initializeApp({
   credential: admin.credential.cert(cert as admin.ServiceAccount),
@@ -100,6 +101,8 @@ const jwtScheme = (_server: Server, _) => ({
   authenticate: (request: Request, h: ResponseToolkit) => {
     const header = request.headers.authorization;
     if ((!header || header.split(' ')[0] != 'Bearer') && !request.state.profile_jwt && !request.state.profile_session) {
+      h.unstate('profile_jwt');
+      h.unstate('profile_session');
       throw unauthorized();
     }
 
@@ -110,10 +113,14 @@ const jwtScheme = (_server: Server, _) => ({
       if (token && token.aud) {
         return h.authenticated({ credentials: { user: token } });
       } else {
+        h.unstate('profile_jwt');
+        h.unstate('profile_session');
         throw unauthorized();
       }
     }
     catch(error) {
+      h.unstate('profile_jwt');
+      h.unstate('profile_session');
       throw unauthorized(error);
     }
   }

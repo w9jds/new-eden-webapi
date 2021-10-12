@@ -4,6 +4,7 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "noImplicitReturns": true,
+    "allowSyntheticDefaultImports": true,
     "removeComments": true,
     "outDir": "lib",
     "sourceMap": true,

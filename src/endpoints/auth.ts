@@ -1,3 +1,6 @@
+import { Request, ResponseToolkit, ResponseObject } from '@hapi/hapi';
+import { badRequest, unauthorized } from '@hapi/boom';
+
 import * as CryptoJs from 'crypto-js';
 import * as atob from 'atob';
 import * as btoa from 'btoa';
@@ -5,10 +8,8 @@ import * as btoa from 'btoa';
 import { addSeconds } from 'date-fns';
 import { verify as Verify, sign } from 'jsonwebtoken';
 import { database, auth } from 'firebase-admin';
-import { Request, ResponseToolkit, ResponseObject } from '@hapi/hapi';
-import { badRequest, unauthorized } from '@hapi/boom';
 import { Permissions } from 'node-esi-stackdriver';
-import { login, verify, revoke } from '../lib/auth';
+import { login, revoke, verify } from '../lib/auth';
 import FirebaseUtils from '../utils/firebase';
 
 import { Payload, State } from '../../models/Payload';
@@ -19,7 +20,7 @@ import {
     RegisterSecret, LoginRedirect, LoginClientId, LoginSecret,
     EveScopes, DefaultEveScopes, CookieOptions
 } from '../config/config';
-
+import { EveTokens, Verification } from '../../models/Auth';
 
 enum RequestType {
   REGISTER = 'register',
@@ -44,6 +45,7 @@ export const verifyJwt = (token): Payload => {
     return Verify(token, process.env.JWT_SECRET_KEY) as Payload;
   }
   catch(error) {
+    console.error(token);
     throw unauthorized(error);
   }
 }
@@ -144,7 +146,7 @@ export default class Authentication {
       redirect: decodeURI(<string>request.query.redirect_to)
     });
 
-    return h.redirect(`https://login.eveonline.com/oauth/authorize?response_type=code&redirect_uri=${LoginRedirect}`
+    return h.redirect(`https://login.eveonline.com/v2/oauth/authorize?response_type=code&redirect_uri=${LoginRedirect}`
       + `&client_id=${LoginClientId}&state=${cipherText}`);
   }
 
@@ -160,30 +162,34 @@ export default class Authentication {
   public loginCallbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
     const state: State = decryptState(request.query.state) as State;
     const tokens = await login(<string>request.query.code, LoginClientId, LoginSecret);
-    const verification = await verify(tokens.token_type, tokens.access_token);
-    const character: database.DataSnapshot = await this.getCharacter(verification.CharacterID);
+    if ('error' in tokens) {
 
-    if (!character.exists()) {
-      return h.redirect(`${AccountsOrigin}?type=character_not_found&redirect_to=${state.redirect}`
-          + `&scopes=${state.scopes.join('%20')}`);
+    } else {
+      const verification = verify(tokens.access_token);
+      const character: database.DataSnapshot = await this.getCharacter(verification.characterId);
+
+      if (!character.exists()) {
+        return h.redirect(`${AccountsOrigin}?type=character_not_found&redirect_to=${state.redirect}`
+            + `&scopes=${state.scopes.join('%20')}`);
+      }
+
+      const profile: database.DataSnapshot = await this.getProfile(character.child('accountId').val());
+      const token = this.buildProfileToken(state.aud, profile.key, profile.child('mainId').val());
+      const missingScopes = verifyScopes(state.scopes, character, null, h);
+
+      if (missingScopes) {
+        let cipherText = encryptState({
+          mainId: character.key,
+          accountId: character.child('accountId').val(),
+          scopes: missingScopes
+        });
+
+        return this.redirect(`${AccountsOrigin}?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}`
+          + `&redirect=${state.redirect}&state=${cipherText}`, token, state.response_type, h);
+      }
+
+      return this.redirect(state.redirect, token, state.response_type, h);
     }
-
-    const profile: database.DataSnapshot = await this.getProfile(character.child('accountId').val());
-    const token = this.buildProfileToken(state.aud, profile.key, profile.child('mainId').val());
-    const missingScopes = verifyScopes(state.scopes, character, null, h);
-
-    if (missingScopes) {
-      let cipherText = encryptState({
-        mainId: character.key,
-        accountId: character.child('accountId').val(),
-        scopes: missingScopes
-      });
-
-      return this.redirect(`${AccountsOrigin}?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}`
-        + `&redirect=${state.redirect}&state=${cipherText}`, token, state.response_type, h);
-    }
-
-    return this.redirect(state.redirect, token, state.response_type, h);
   }
 
   public registerHandler = (request: Request, h: ResponseToolkit) => {
@@ -202,40 +208,44 @@ export default class Authentication {
       redirect: decodeURI(<string>request.query.redirect_to)
     });
 
-    return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}`
+    return h.redirect(`https://login.eveonline.com/v2/oauth/authorize?response_type=code&redirect_uri=${RegisterRedirect}`
       + `&client_id=${RegisterClientId}&scope=${buildRegisterScopes(request)}&state=${cipherText}`);
   }
 
   public registerCallbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
     const state: State = decryptState(request.query['state']) as State;
     const tokens = await login(<string>request.query.code, RegisterClientId, RegisterSecret);
-    const verification = await verify(tokens.token_type, tokens.access_token);
-    const character: database.DataSnapshot = await this.getCharacter(verification.CharacterID);
+    if ('error' in tokens) {
 
-    if (!character.exists()) {
-      switch (state.type) {
-        case RequestType.REGISTER:
-          let token = await this.createNewProfile(state, tokens, verification);
-          return this.redirect(state.redirect, token, state.response_type, h);
-        case RequestType.ADD_CHARACTER:
-          let character = this.createCharacter(tokens, verification, state.accountId);
-          await Promise.all([
-            this.createUser(verification),
-            this.firebase.ref(`characters/${verification.CharacterID}`).set(character)
-          ]);
-          return h.redirect(state.redirect);
+    } else {
+      const verification = verify(tokens.access_token);
+      const character: database.DataSnapshot = await this.getCharacter(verification.characterId);
+  
+      if (!character.exists()) {
+        switch (state.type) {
+          case RequestType.REGISTER:
+            let token = await this.createNewProfile(state, tokens, verification);
+            return this.redirect(state.redirect, token, state.response_type, h);
+          case RequestType.ADD_CHARACTER:
+            let character = this.createCharacter(tokens, verification, state.accountId);
+            await Promise.all([
+              this.createUser(verification),
+              this.firebase.ref(`characters/${verification.characterId}`).set(character)
+            ]);
+            return h.redirect(state.redirect);
+        }
       }
+  
+      if (character.hasChild('sso')) {
+          let permissions: Permissions = character.child('sso').val();
+          await revoke(permissions.accessToken, RegisterClientId, RegisterSecret);
+      }
+  
+      await character.child('sso').ref.set(this.createCharacter(tokens, verification, state.accountId).sso);
+  
+      let token = this.buildProfileToken(state.redirect, state.accountId, verification.characterId);
+      return this.redirect(state.redirect, token, state.response_type, h);
     }
-
-    if (character.hasChild('sso')) {
-        let permissions: Permissions = character.child('sso').val();
-        await revoke(permissions.accessToken, RegisterClientId, RegisterSecret);
-    }
-
-    await character.child('sso').ref.set(this.createCharacter(tokens, verification, state.accountId).sso);
-
-    let token = this.buildProfileToken(state.redirect, state.accountId, verification.CharacterID);
-    return this.redirect(state.redirect, token, state.response_type, h);
   }
 
   public modifyScopesHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
@@ -294,7 +304,7 @@ export default class Authentication {
       redirect: decodeURIComponent(<string>request.query.redirect_to)
     });
 
-    return h.redirect(`https://login.eveonline.com/oauth/authorize/?response_type=code&redirect_uri=${RegisterRedirect}`
+    return h.redirect(`https://login.eveonline.com/v2/oauth/authorize?response_type=code&redirect_uri=${RegisterRedirect}`
       + `&client_id=${RegisterClientId}&scope=${buildRegisterScopes(request)}&state=${cipherText}`);
   }
 
@@ -342,12 +352,13 @@ export default class Authentication {
 
     await profile.child('lastSeen').ref.set(Date.now());
 
-    const token = this.buildProfileToken(authorization.aud, authorization.accountId, characterId);
-
-    h.state('profile_jwt', token, {
-      ...CookieOptions,
-      ttl: 1000 * 60 * 60 * 24 * 365 * 10
-    });
+    if (request.params.userId && request.params.userId != authorization.mainId) {
+      const updatedToken = this.buildProfileToken(authorization.aud, authorization.accountId, request.params.userId);
+      h.state('profile_jwt', updatedToken, {
+        ...CookieOptions,
+        ttl: 1000 * 60 * 60 * 24 * 365 * 10
+      });
+    }
 
     return h.response({
       characterId: characterId,
@@ -355,16 +366,16 @@ export default class Authentication {
     });
   }
 
-  private createCharacter = (tokens, verification, accountId) => ({
-    id: verification.CharacterID,
+  private createCharacter = (tokens: EveTokens, verification: Verification, accountId) => ({
+    id: verification.characterId,
     accountId,
-    name: verification.CharacterName,
-    hash: verification.CharacterOwnerHash,
+    name: verification.name,
+    hash: verification.owner,
     sso: {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       expiresAt: addSeconds(new Date(), tokens.expires_in - 60).toISOString(),
-      scope: verification.Scopes
+      scope: verification.scopes
     }
   });
 
@@ -377,11 +388,11 @@ export default class Authentication {
   private getCorpConfig = (corpId: number | string): Promise<database.DataSnapshot> =>
     this.firebase.ref(`corporations/configs/${corpId}`).once('value');
 
-  private createUser = (verification): Promise<auth.UserRecord> => {
+  private createUser = (verification: Verification): Promise<auth.UserRecord> => {
     let user = {
-      uid: verification.CharacterID.toString(),
-      displayName: verification.CharacterName,
-      photoURL: `https://imageserver.eveonline.com/Character/${verification.CharacterID}_512.jpg`,
+      uid: verification.characterId.toString(),
+      displayName: verification.name,
+      photoURL: `https://imageserver.eveonline.com/Character/${verification.characterId}_512.jpg`,
       disabled: false
     };
 
@@ -408,28 +419,27 @@ export default class Authentication {
     }
   }
 
-  private createNewProfile = async (state, tokens, verification): Promise<string> => {
+  private createNewProfile = async (state, tokens: EveTokens, verification: Verification): Promise<string> => {
     let accountId: string = FirebaseUtils.generateKey();
 
     await Promise.all([
       this.createUser(verification),
-      this.firebase.ref(`characters/${verification.CharacterID}`)
+      this.firebase.ref(`characters/${verification.characterId}`)
           .set(this.createCharacter(tokens, verification, accountId)),
       this.firebase.ref(`users/${accountId}`).set({
         id: accountId,
-        mainId: verification.CharacterID,
-        name: verification.CharacterName,
+        mainId: verification.characterId,
+        name: verification.name,
         errors: false
       })
     ]);
 
-    return this.buildProfileToken(state.aud, accountId, verification.CharacterID);
+    return this.buildProfileToken(state.aud, accountId, verification.characterId);
   }
 
   private buildProfileToken = (host: string, accountId: string | number, mainId): string => {
     return sign({
       iss: 'https://api.new-eden.io',
-      // sub: () => 'profile',
       aud: host,
       accountId,
       mainId,

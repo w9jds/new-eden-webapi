@@ -1,8 +1,8 @@
-import * as admin from 'firebase-admin';
+import { database as db } from 'firebase-admin';
 import { database, EventContext } from 'firebase-functions';
 
 import { UserAgent } from '../config/constants';
-import { Esi, Title, Roles } from 'node-esi-stackdriver';
+import { Esi, Title } from 'node-esi-stackdriver';
 
 export default class CharacterHandlers {
 
@@ -22,7 +22,7 @@ export default class CharacterHandlers {
   public onCharacterLogin = (snapshot: database.DataSnapshot, context?: EventContext) =>
     this.populateCharacterInfo(context.params.characterId, snapshot.child('accessToken').val(), snapshot.ref.parent);
 
-  private populateCharacterInfo = async (characterId: string, accessToken: string, ref: admin.database.Reference) => {
+  private populateCharacterInfo = async (characterId: string, accessToken: string, ref: db.Reference) => {
     const responses = await Promise.all([
       this.esi.getCharacter(characterId),
       this.esi.getCharacterRoles(characterId, accessToken),
@@ -58,7 +58,7 @@ export default class CharacterHandlers {
     }
 
     await ref.child('expired_scopes').remove();
-    const accountId: admin.database.DataSnapshot = await ref.child('accountId').once('value');
+    const accountId: db.DataSnapshot = await ref.child('accountId').once('value');
     await this.updateFlags(accountId.val());
   }
 

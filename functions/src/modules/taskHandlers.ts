@@ -5,7 +5,6 @@ import { addSeconds } from 'date-fns';
 import { Character } from 'node-esi-stackdriver';
 import { refresh, verify } from '../lib/Auth';
 
-
 const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Reference, resp: FetchResponse, result: Response): Promise<any> => {
   let content: any;
   const payload = {
@@ -61,20 +60,20 @@ export const onRefreshToken = async (req: https.Request, resp: Response<any>) =>
 
     if (response.status === 200) {
       const tokens = await response.json();
-      const verification = await verify(tokens.token_type, tokens.access_token);
+      const verification = verify(tokens.access_token);
 
       character.sso.accessToken = tokens.access_token;
       character.sso.refreshToken = tokens.refresh_token;
 
       await taskRef.remove();
       await snapshot.ref.update({
-        name: verification.CharacterName,
-        hash: verification.CharacterOwnerHash,
+        name: verification.name,
+        hash: verification.owner,
         sso: {
           accessToken: tokens.access_token,
           refreshToken: tokens.refresh_token,
           expiresAt: addSeconds(new Date(), tokens.expires_in - 60),
-          scope: verification.Scopes
+          scope: verification.scopes
         }
       });
 

@@ -1,6 +1,8 @@
 import { UserAgent } from '../config/config';
 import fetch, { Response } from 'node-fetch';
 import { ErrorResponse, Logger } from 'node-esi-stackdriver';
+import { decode } from 'jsonwebtoken';
+import { EveTokens, TokenPayload, Verification } from '../../models/Auth';
 
 const logging = new Logger('auth', { projectId: 'new-eden-storage-a5c23' });
 const headers = {
@@ -25,8 +27,21 @@ const verifyResponse = async (method: string, response: Response): Promise<any |
   }
 }
 
-export const login = async (code: string, clientId: string, secret: string): Promise<any | ErrorResponse> => {
-  const response = await fetch('https://login.eveonline.com/oauth/token', {
+export const verify = (token: string): Verification => {
+  const payload: TokenPayload = decode(token, { 
+    json: true 
+  });
+  
+  return {
+    characterId: +payload.sub.split(':')[2],
+    name: payload.name,
+    owner: payload.owner,
+    scopes: payload.scp ? payload.scp.join(' ') : '',
+  };
+}
+
+export const login = async (code: string, clientId: string, secret: string): Promise<EveTokens | ErrorResponse> => {
+  const response = await fetch('https://login.eveonline.com/v2/oauth/token', {
     method: 'POST',
     headers: {
       'Authorization': 'Basic ' + Buffer.from(clientId + ':' + secret).toString('base64'),
@@ -40,25 +55,8 @@ export const login = async (code: string, clientId: string, secret: string): Pro
   return verifyResponse('POST', response);
 }
 
-export const verify = async (type: string, token: string): Promise<any> => {
-  const response = await fetch('https://login.eveonline.com/oauth/verify/', {
-    method: 'GET',
-    headers: {
-      'Authorization': type + ' ' + token,
-      'Host': 'login.eveonline.com',
-      ...headers
-    }
-  });
-
-  if (response.status === 200) {
-    return response.json();
-  }
-
-  throw new Error(`Invalid Login: ${response.status} ${response.body}`);
-}
-
 export const refresh = async (refreshToken: string, clientId: string, secret: string): Promise<any> => {
-  return fetch('https://login.eveonline.com/oauth/token', {
+  return fetch('https://login.eveonline.com/v2/oauth/token', {
     method: 'POST',
     headers: {
       'Authorization': 'Basic ' + Buffer.from(clientId + ':' + secret).toString('base64'),
@@ -70,7 +68,7 @@ export const refresh = async (refreshToken: string, clientId: string, secret: st
 }
 
 export const revoke = async (accessToken: string, clientId: string, secret: string): Promise<any> => {
-  return await fetch(`https://login.eveonline.com/oauth/revoke?token_type_hint=access_token&token=${accessToken}`, {
+  return await fetch(`https://login.eveonline.com/v2/oauth/revoke?token_type_hint=access_token&token=${accessToken}`, {
     method: 'POST',
     headers: {
       'Authorization': `Basic ${Buffer.from(clientId + ':' + secret).toString('base64')}`,

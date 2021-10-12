@@ -1,35 +1,31 @@
+import fetch from 'node-fetch';
+import { decode } from 'jsonwebtoken';
 import { config } from 'firebase-functions';
-import fetch, { Response } from 'node-fetch';
 import { UserAgent } from '../config/constants';
+import { Verification, TokenPayload } from '../../../models/Auth';
 
 type EveConfig = {
   client_id: string;
   client_secret: string;
 }
 
-export const verify = async (type: string, token: string): Promise<any> => {
-  const response: Response = await fetch('https://login.eveonline.com/oauth/verify/', {
-    method: 'GET',
-    headers: {
-      'Authorization': type + ' ' + token,
-      'Host': 'login.eveonline.com',
-      'Accept': 'application/json',
-      'User-Agent': UserAgent,
-    }
+export const verify = (token: string): Verification => {
+  const payload: TokenPayload = decode(token, { 
+    json: true 
   });
-
-  if (response.status === 200) {
-    return response.json();
-  }
-  else {
-    throw new Error(`Invalid Login: ${response.status} ${response.body}`);
-  }
+  
+  return {
+    characterId: +payload.sub.split(':')[2],
+    name: payload.name,
+    owner: payload.owner,
+    scopes: payload.scp.join(' '),
+  };
 }
 
 export const refresh = (refreshToken: string): Promise<any> => {
   const eve: EveConfig = config().eve;
 
-  return fetch('https://login.eveonline.com/oauth/token', {
+  return fetch('https://login.eveonline.com/v2/oauth/token', {
     method: 'POST',
     body: `grant_type=refresh_token&refresh_token=${refreshToken}`,
     headers: {
@@ -40,3 +36,5 @@ export const refresh = (refreshToken: string): Promise<any> => {
     }
   });
 }
+
+

@@ -1,5 +1,5 @@
-import { database, pubsub, config, https } from 'firebase-functions';
-import { initializeApp } from 'firebase-admin';
+import admin from 'firebase-admin';
+import { database, pubsub, https } from 'firebase-functions';
 
 import { Esi } from 'node-esi-stackdriver';
 
@@ -14,7 +14,7 @@ import { onRolesChanged, createRefreshTask } from './modules/auth';
 import { signatureUpdated, signatureCreated, signatureDeleted } from './modules/analytics';
 import { onRefreshToken } from './modules/taskHandlers';
 
-global.app = initializeApp();
+global.app = admin.initializeApp();
 global.firebase = app.database();
 global.esi = new Esi(UserAgent, {
   projectId: ProjectId,
