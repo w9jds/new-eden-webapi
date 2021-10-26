@@ -10,17 +10,17 @@ type EveConfig = {
 }
 
 export const verify = (token: string): Verification => {
-  const payload: TokenPayload = decode(token, { 
-    json: true 
+  const payload: TokenPayload = decode(token, {
+    json: true,
   });
-  
+
   return {
     characterId: +payload.sub.split(':')[2],
     name: payload.name,
     owner: payload.owner,
     scopes: payload.scp.join(' '),
   };
-}
+};
 
 export const refresh = (refreshToken: string): Promise<any> => {
   const eve: EveConfig = config().eve;
@@ -32,9 +32,7 @@ export const refresh = (refreshToken: string): Promise<any> => {
       'User-Agent': UserAgent,
       'Authorization': 'Basic ' + Buffer.from(eve.client_id + ':' + eve.client_secret).toString('base64'),
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Host': 'login.eveonline.com'
-    }
+      'Host': 'login.eveonline.com',
+    },
   });
-}
-
-
+};

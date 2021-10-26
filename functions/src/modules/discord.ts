@@ -18,7 +18,7 @@ export default class DiscordHandlers {
   private getFirebaseObject = async <T>(reference: database.Reference): Promise<T | null> => {
     const snapshot: database.DataSnapshot = await reference.once('value');
     return snapshot.exists() ? snapshot.val() : null;
-  }
+  };
 
   private getFirebaseObjects = async <T>(query: database.Reference | database.Query): Promise<T[] | null> => {
     const snapshot: database.DataSnapshot = await query.once('value');
@@ -29,35 +29,35 @@ export default class DiscordHandlers {
     }
 
     return [];
-  }
+  };
 
   private getAccount = (accountId: string): Promise<Account> =>
-    this.getFirebaseObject<Account>(firebase.ref(`users/${accountId}`));
+    this.getFirebaseObject<Account>(global.firebase.ref(`users/${accountId}`));
 
   private getCharacter = (characterId: number): Promise<Character> =>
-    this.getFirebaseObject<Character>(firebase.ref(`characters/${characterId}`));
+    this.getFirebaseObject<Character>(global.firebase.ref(`characters/${characterId}`));
 
   private getGuild = async (corpId: number): Promise<FirebaseGuild> => {
     const matches = await this.getFirebaseObjects<FirebaseGuild>(
-      firebase.ref('guilds').orderByChild('corpId').equalTo(corpId)
+      global.firebase.ref('guilds').orderByChild('corpId').equalTo(corpId)
     );
 
     return matches[0];
-  }
+  };
 
-  private getGuilds = (): Promise<FirebaseGuild[]> => this.getFirebaseObjects(firebase.ref('guilds'));
+  private getGuilds = (): Promise<FirebaseGuild[]> => this.getFirebaseObjects(global.firebase.ref('guilds'));
 
   private getDiscordAccount = async (accountId: string | number): Promise<DiscordAccount> => {
     const matches = await this.getFirebaseObjects<DiscordAccount>(
-      firebase.ref('discord').orderByChild('accountId').equalTo(accountId)
+      global.firebase.ref('discord').orderByChild('accountId').equalTo(accountId)
     );
 
     return matches[0];
-  }
+  };
 
   private getRoles = (character: Character, guild: FirebaseGuild, roles: GuildRole[], user: GuildMember): string[] => {
     const ids: string[] = [];
-    let isMember: Boolean = false;
+    let isMember = false;
 
     if (character) {
       isMember = character.corpId === guild.corpId || character.allianceId === guild.allianceId;
@@ -83,7 +83,7 @@ export default class DiscordHandlers {
       const titles = character.titles ? Object.values(character.titles) : [];
 
       for (const role of roles) {
-        switch(role.name) {
+        switch (role.name) {
           case 'NewBro':
             if (character.memberFor && character.memberFor <= 90) {
               ids.push(role.id);
@@ -101,26 +101,26 @@ export default class DiscordHandlers {
     }
 
     return ids;
-  }
+  };
 
   private refreshTokens = async (account: DiscordAccount): Promise<boolean> => {
     const response = await this.api.refresh(account.refreshToken, account.scope);
 
     if ('error' in response) {
       if (response.statusCode >= 400 && response.statusCode < 500) {
-        await firebase.ref(`discord/${account.id}`).remove();
+        await global.firebase.ref(`discord/${account.id}`).remove();
         return false;
       }
     }
 
-    await firebase.ref(`discord/${account.id}`).update(response)
+    await global.firebase.ref(`discord/${account.id}`).update(response)
       .catch(error => {
-        console.error(`Error storing updated credentials: `, error);
+        console.error('Error storing updated credentials: ', error);
         return false;
       });
 
     return true;
-  }
+  };
 
   private updateRolesFromId = async (userId: number): Promise<any> => {
     const character: Character = await this.getCharacter(userId);
@@ -135,7 +135,7 @@ export default class DiscordHandlers {
 
       console.info(`${character.name} is not the main character for their account.`);
     }
-  }
+  };
 
   private updateRoles = async (character: Character, account: DiscordAccount): Promise<any> => {
     const guilds: FirebaseGuild[] = await this.getGuilds();
@@ -157,7 +157,7 @@ export default class DiscordHandlers {
             if (this.arraysEqual(user.roles, updatedRoles) === false) {
               patches.push(
                 this.api.updateGuildMember(guild.id, account.id, {
-                  roles: updatedRoles
+                  roles: updatedRoles,
                 })
               );
 
@@ -168,7 +168,7 @@ export default class DiscordHandlers {
         }
       }
     }
-  }
+  };
 
   private arraysEqual = (left: Array<string>, right: Array<string>) => {
     if (left === right) return true;
@@ -182,7 +182,7 @@ export default class DiscordHandlers {
     }
 
     return true;
-  }
+  };
 
   private manageAccount = async (discordAccount: DiscordAccount): Promise<any> => {
     const account: Account = await this.getAccount(discordAccount.accountId);
@@ -199,33 +199,32 @@ export default class DiscordHandlers {
           return this.api.addGuildMember(guild.id, discordAccount.id, {
             access_token: discordAccount.accessToken,
             nick: character.name,
-            roles: await this.getRoles(character, guild, roles, null)
+            roles: await this.getRoles(character, guild, roles, null),
           });
         }
 
         console.warn('Could not get list of roles from specified Guild');
         return;
-      }
-      else {
+      } else {
         return Promise.all([
           this.api.updateGuildMember(guild.id, discordAccount.id, { nick: character.name }),
-          this.updateRoles(character, discordAccount)
+          this.updateRoles(character, discordAccount),
         ]);
       }
     }
 
     if (!account) {
-      console.warn(`Could not find the associated account!`);
+      console.warn('Could not find the associated account!');
     }
 
-    if (!character)  {
-      console.warn(`Could not find the associated character!`);
+    if (!character) {
+      console.warn('Could not find the associated character!');
     }
 
     if (!guild) {
-      console.warn(`No corp discord guild was found for ${character.name} so he wasn't added to any guilds.`)
+      console.warn(`No corp discord guild was found for ${character.name} so he wasn't added to any guilds.`);
     }
-  }
+  };
 
   private updateAssociations = async (userId: number): Promise<any> => {
     const character: Character = await this.getCharacter(userId);
@@ -242,9 +241,8 @@ export default class DiscordHandlers {
             console.warn(`Token refresh for ${account.username}#${account.discriminator} failed, and has been removed.`);
             return;
           }
-        }
-        else {
-          console.info(`Refresh token still valid, running manageAccount.`);
+        } else {
+          console.info('Refresh token still valid, running manageAccount.');
         }
 
         return await this.manageAccount(await this.getDiscordAccount(character.accountId));
@@ -255,29 +253,27 @@ export default class DiscordHandlers {
         `Couldn't find discord for ${character.name} with ${profile.id}`
       );
     }
-  }
+  };
 
   public onNewAccount = async (snapshot: database.DataSnapshot, context?: EventContext): Promise<any> =>
     this.manageAccount(snapshot.val() as DiscordAccount);
 
-    /**
-     * Update Discord roles for ALL registered guilds this member belongs to,
-     * and add the user to any guild they may now belong to with the update affiliations
-     */
+  // Update Discord roles for ALL registered guilds this member belongs to,
+  // and add the user to any guild they may now belong to with the update affiliations
   public onCorpUpdate = async (_change: Change<database.DataSnapshot>, context?: EventContext): Promise<void> => {
     console.info('Searching for new associated servers that are available.');
     await this.updateAssociations(context.params.userId);
     console.info('Updating roles on all registered Discord servers.');
     await this.updateRolesFromId(context.params.userId);
-  }
+  };
 
   public onTitlesWrite = async (change: Change<database.DataSnapshot>, context?: EventContext) => {
     await this.updateRolesFromId(context.params.userId);
-  }
+  };
 
   public onMemberForWrite = async (change: Change<database.DataSnapshot>, context?: EventContext) => {
     await this.updateRolesFromId(context.params.userId);
-  }
+  };
 
   public onMainCharacterUpdated = async (change: Change<database.DataSnapshot>, context?: EventContext): Promise<any> => {
     const account: DiscordAccount = await this.getDiscordAccount(context.params.userId);
@@ -290,7 +286,7 @@ export default class DiscordHandlers {
       for (const guild of guilds) {
         patches.push(this.updateRoles(character, account));
         patches.push(this.api.updateGuildMember(guild.id, account.id, {
-          nick: character.name
+          nick: character.name,
         }));
       }
 
@@ -298,6 +294,5 @@ export default class DiscordHandlers {
     }
 
     return;
-  }
-
+  };
 }

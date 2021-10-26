@@ -1,10 +1,13 @@
+export {};
 
-declare module NodeJS {
+declare global {
+  namespace NodeJS {
     interface Global {
-        app: import('firebase-admin').app.App;
-        esi: import('node-esi-stackdriver').Esi;
-        firebase: import('firebase-admin').database.Database;
+      app: import('firebase-admin').app.App;
+      esi: import('node-esi-stackdriver').Esi;
+      firebase: import('firebase-admin').database.Database;
     }
+  }
 }
 
 declare const app: import('firebase-admin').app.App;

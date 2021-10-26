@@ -14,7 +14,7 @@ export const onRolesChanged = async (change: Change<DataSnapshot>, context?: Eve
     await auth().setCustomUserClaims(context.params.userId, {
       director: true,
       recruiter: true,
-      leadership: true
+      leadership: true,
     });
   }
 
@@ -22,28 +22,28 @@ export const onRolesChanged = async (change: Change<DataSnapshot>, context?: Eve
     await auth().setCustomUserClaims(context.params.userId, {
       director: false,
       recruiter: false,
-      leadership: false
+      leadership: false,
     });
   }
-}
+};
 
 export const createRefreshTask = async (change: Change<DataSnapshot>, context: EventContext) => {
-  const taskRef = firebase.ref(`tasks/${context.params.characterId}/tokens`);
+  const taskRef = global.firebase.ref(`tasks/${context.params.characterId}/tokens`);
   const sso: Permissions = change.after.val();
-  
+
   if (!sso || !sso.refreshToken) {
     return Promise.resolve('User has no SSO validated.');
   }
-  
+
   const expiresAt = new Date(sso.expiresAt);
   const scheduled = await taskRef.once('value');
   const client = new v2beta3.CloudTasksClient();
   const queueName = 'refresh-token-queue';
-  
+
   if (scheduled && scheduled.exists()) {
     try {
-      const [ current ] = await client.getTask({
-        name: client.taskPath(ProjectId, TaskConfigs.Location, queueName, scheduled.child('name').val())
+      const [current] = await client.getTask({
+        name: client.taskPath(ProjectId, TaskConfigs.Location, queueName, scheduled.child('name').val()),
       });
 
       if (current) {
@@ -53,7 +53,7 @@ export const createRefreshTask = async (change: Change<DataSnapshot>, context: E
     } catch (err) {
       console.log(err);
       console.log(`Task ${scheduled.child('name').val()} doesn't exist, clearing out cached name and creating new one`);
-      await firebase.ref(`tasks/${context.params.characterId}`).remove();
+      await global.firebase.ref(`tasks/${context.params.characterId}`).remove();
     }
   }
 
@@ -70,7 +70,7 @@ export const createRefreshTask = async (change: Change<DataSnapshot>, context: E
   const serialized = JSON.stringify({ characterId: context.params.characterId });
   const body = Buffer.from(serialized).toString('base64');
 
-  const taskName = `${context.params.characterId}_${context.eventId.replace(/[^a-zA-Z0-9]/g,'_')}`;
+  const taskName = `${context.params.characterId}_${context.eventId.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
   const task: any = {
     name: client.taskPath(ProjectId, TaskConfigs.Location, queueName, taskName),
@@ -83,7 +83,7 @@ export const createRefreshTask = async (change: Change<DataSnapshot>, context: E
       body,
       oidcToken: {
         serviceAccountEmail: TaskConfigs.ServiceAccountEmail,
-      }
+      },
     },
   };
 
@@ -93,9 +93,9 @@ export const createRefreshTask = async (change: Change<DataSnapshot>, context: E
     };
   }
 
-  await client.createTask({ parent, task })
+  await client.createTask({ parent, task });
   return taskRef.set({
     name: taskName,
     scheduleTime: !isAfter(now, expiresAt) ? expiresAt : Date.now(),
   });
-}
+};

@@ -4,27 +4,26 @@ import fetch, { Response } from 'node-fetch';
 import { GuildMember, PatchGuildMember, GuildRole, Guild, AddGuildMember, Tokens } from '../../../models/Discord';
 
 export default class DiscordApi {
-
   private headers;
 
   constructor(private clientId: string, private clientSecret: string, token: string) {
     this.headers = {
       'Authorization': `Bot ${token}`,
-      'User-Agent': 'Aura Bot Cloud Functions (https://github.com/w9jds, v1) - Jeremy Shore - w9jds@live.com'
-    }
+      'ser-Agent': 'Aura Bot Cloud Functions (https://github.com/w9jds, v1) - Jeremy Shore - w9jds@live.com',
+    };
   }
 
   public refresh = async (refreshToken: string, scope: string): Promise<Tokens | ErrorResponse> => {
     const response: Response = await fetch('https://discord.com/api/oauth2/token', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: encodeURIComponent(
         `client_id=${this.clientId}&client_secret=${this.clientSecret}&` +
         `grant_type='refresh_token'&refresh_token=${refreshToken}&redirect_uri=${DiscordRedirect}&` +
         `scope=${scope}`
-      )
+      ),
     });
 
     if (response.status >= 200 && response.status < 300) {
@@ -40,9 +39,9 @@ export default class DiscordApi {
     return {
       error: true,
       statusCode: response.status,
-      uri: response.url
-    }
-  }
+      uri: response.url,
+    };
+  };
 
   private request = async <T>(url: string, options): Promise<T | ErrorResponse> => {
     const response: Response = await fetch(url, options);
@@ -65,31 +64,31 @@ export default class DiscordApi {
     return {
       error: true,
       statusCode: response.status,
-      uri: response.url
-    }
-  }
+      uri: response.url,
+    };
+  };
 
   private sleep = (ms: number): Promise<void> => new Promise(resolve => {
-    setTimeout(resolve, ms)
-  })
+    setTimeout(resolve, ms);
+  });
 
   public getGuildRoles = async (guildId: number | string): Promise<GuildRole[]|ErrorResponse> =>
     this.request<GuildRole[]>(`${DiscordBaseUri}/guilds/${guildId}/roles`, {
-        method: 'GET',
-        headers: this.headers
-    })
+      method: 'GET',
+      headers: this.headers,
+    });
 
   public getGuildMembers = async (guildId: number | string): Promise<GuildMember[]|ErrorResponse> =>
     this.request<GuildMember[]>(`${DiscordBaseUri}/guilds/${guildId}/members`, {
       method: 'GET',
-      headers: this.headers
-    })
+      headers: this.headers,
+    });
 
   public getGuildMember = async (guildId: number | string, userId: number | string): Promise<GuildMember|ErrorResponse> =>
     this.request<GuildMember>(`${DiscordBaseUri}/guilds/${guildId}/members/${userId}`, {
       method: 'GET',
-      headers: this.headers
-    })
+      headers: this.headers,
+    });
 
   public updateGuildMember = async (guildId: number | string, userId: number | string, patch: PatchGuildMember): Promise<boolean|ErrorResponse> =>
     this.request<boolean>(`${DiscordBaseUri}/guilds/${guildId}/members/${userId}`, {
@@ -98,14 +97,14 @@ export default class DiscordApi {
         ...this.headers,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(patch)
-    })
+      body: JSON.stringify(patch),
+    });
 
   public getBotGuilds = async (): Promise<Guild[]|ErrorResponse> =>
     this.request<Guild[]>(`${DiscordBaseUri}/users/@me/guilds`, {
       method: 'GET',
-      headers: this.headers
-    })
+      headers: this.headers,
+    });
 
   public addGuildMember = async (guildId: number | string, userId: number | string, user: AddGuildMember): Promise<GuildMember|ErrorResponse> =>
     this.request<GuildMember>(`${DiscordBaseUri}/guilds/${guildId}/members/${userId}`, {
@@ -114,6 +113,6 @@ export default class DiscordApi {
         ...this.headers,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(user)
-    })
+      body: JSON.stringify(user),
+    });
 }

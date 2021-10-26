@@ -15,7 +15,7 @@ import { signatureUpdated, signatureCreated, signatureDeleted } from './modules/
 import { onRefreshToken } from './modules/taskHandlers';
 
 global.app = admin.initializeApp();
-global.firebase = app.database();
+global.firebase = global.app.database();
 global.esi = new Esi(UserAgent, {
   projectId: ProjectId,
 });
@@ -73,10 +73,10 @@ export const onMapDeleted = database.ref('maps/{mapId}')
 export const onAccessGroupCreated = database.ref('maps/{mapId}/accesslist/{groupId}')
   .onCreate(accessLists.onAccessGroupCreated);
 
-export const onAccessGroupDeleted = database.ref(`maps/{mapId}/accesslist/{groupId}`)
+export const onAccessGroupDeleted = database.ref('maps/{mapId}/accesslist/{groupId}')
   .onDelete(accessLists.onAccessGroupDeleted);
 
-export const onAccessGroupUpdated = database.ref(`maps/{mapId}/accesslist/{groupId}/write`)
+export const onAccessGroupUpdated = database.ref('maps/{mapId}/accesslist/{groupId}/write')
   .onUpdate(accessLists.onAccessGroupUpdated);
 
 /**
