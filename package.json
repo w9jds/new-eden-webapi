@@ -9,27 +9,27 @@
     "build-prod": "npm run build && docker build -t chingy-webapi ."
   },
   "dependencies": {
-    "@google-cloud/logging": "^9.6.1",
-    "@hapi/boom": "^9.1.4",
-    "@hapi/hapi": "^20.2.1",
+    "@google-cloud/logging": "^10.0.2",
+    "@hapi/boom": "^10.0.0",
+    "@hapi/hapi": "^20.2.2",
     "atob": "^2.1.2",
     "btoa": "^1.2.1",
     "crypto-js": "^4.1.1",
-    "date-fns": "^2.25.0",
-    "firebase-admin": "^10.0.0",
-    "googleapis": "^89.0.0",
+    "date-fns": "^2.28.0",
+    "firebase-admin": "^10.2.0",
+    "googleapis": "^100.0.0",
     "jsonwebtoken": "^8.5.1",
-    "node-esi-stackdriver": "^1.0.37",
-    "node-fetch": "^2.6.5",
-    "query-string": "^7.0.1"
+    "node-esi-stackdriver": "^1.0.38",
+    "node-fetch": "^3.2.4",
+    "query-string": "^7.1.1"
   },
   "devDependencies": {
-    "@types/crypto-js": "^4.0.2",
-    "@types/jsonwebtoken": "^8.5.5",
-    "@types/node": "^16.11.6",
-    "@types/node-fetch": "^3.0.3",
-    "tslib": "^2.3.1",
+    "@types/crypto-js": "^4.1.1",
+    "@types/jsonwebtoken": "^8.5.8",
+    "@types/node": "^17.0.35",
+    "@types/node-fetch": "^2.6.1",
+    "tslib": "^2.4.0",
     "tslint": "^6.1.3",
-    "typescript": "^4.4.4"
+    "typescript": "^4.7.2"
   }
 }

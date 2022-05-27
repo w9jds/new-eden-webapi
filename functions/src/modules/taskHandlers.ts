@@ -35,7 +35,7 @@ const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Ref
       global.firebase.ref(`users/${user.child('accountId').val()}/errors`).set(true),
     ]);
 
-    console.log(`User token removed for ${user.key}`);
+    console.log(`${user.key}: ${content.error} - User Token Removed`);
     result.status(200).send(`User token removed for ${user.key}`);
     return;
   }

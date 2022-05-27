@@ -1,30 +1,27 @@
-import { database } from 'firebase-admin';
+import { database, Change, EventContext } from 'firebase-functions';
+import {KillMail} from '../../../models/KillMails';
 import { compareAsc } from 'date-fns';
-import { KillMail } from '../../../models/KillMails';
 
+export const onNewKillAdded = async (change: Change<database.DataSnapshot>, context?: EventContext) => {
+  if (change.after.numChildren() > 6) {
+    const kills: Record<number, KillMail> = change.after.val();
+    const old = [];
 
-export const clearOldKillMails = async () => {
-  const oldRefs = [];
-  const snapshot = await global.firebase.ref('kills').once('value');
+    const latest = Object.keys(kills).sort((a, b) => {
+      const killA = Date.parse(kills[a].killmail_time);
+      const killB = Date.parse(kills[b].killmail_time);
 
-  snapshot.forEach((system: database.DataSnapshot) => {
-    if (system.numChildren() > 6) {
-      const kills: Record<number, KillMail> = system.val();
+      return compareAsc(killA, killB);
+    });
 
-      const latest = Object.keys(kills).sort((a, b) => {
-        const killA = Date.parse(kills[a].killmail_time);
-        const killB = Date.parse(kills[b].killmail_time);
-
-        return compareAsc(killA, killB);
-      });
-
-      for (const id of latest.slice(0, -6)) {
-        oldRefs.push(`kills/${system.key}/${id}`);
-      }
+    for (const id of latest.slice(0, -6)) {
+      old.push(`${id}`);
     }
-  });
 
-  return Promise.all(oldRefs.map(
-    ref => global.firebase.ref(ref).remove()
-  ));
+    console.log(`Removing ${JSON.stringify(old)} from ${context.params.systemId}`);
+
+    Promise.all(old.map(
+      id => change.after.child(id).ref.remove()
+    ));
+  }
 };

@@ -1,5 +1,5 @@
 import admin from 'firebase-admin';
-import { database, pubsub, https } from 'firebase-functions';
+import { runWith, database, pubsub, https } from 'firebase-functions';
 
 import { Esi } from 'node-esi-stackdriver';
 
@@ -13,6 +13,7 @@ import { updateSystemStatistics } from './modules/statistics';
 import { onRolesChanged, createRefreshTask } from './modules/auth';
 import { signatureUpdated, signatureCreated, signatureDeleted } from './modules/analytics';
 import { onRefreshToken } from './modules/taskHandlers';
+import { onNewKillAdded } from './modules/killMails';
 
 global.app = admin.initializeApp();
 global.firebase = global.app.database();
@@ -52,10 +53,14 @@ export const onCharacterLogin = database.ref('characters/{characterId}/sso')
 export const onRolesWrite = database.ref('characters/{userId}/roles/roles')
   .onWrite(onRolesChanged);
 
+export const onKillAdded = database.ref('kills/{systemId}')
+  .onUpdate(onNewKillAdded);
+
 /**
  * Cloud Task Managers
  */
-export const onCharacterTokens = database.ref('characters/{characterId}/sso')
+export const onCharacterTokens = runWith({ memory: '512MB' })
+  .database.ref('characters/{characterId}/sso')
   .onWrite(createRefreshTask);
 
 /**

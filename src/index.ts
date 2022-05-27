@@ -8,11 +8,10 @@ import Authentication, {verifyJwt} from './endpoints/auth';
 import Discord from './endpoints/discord';
 import Api from './endpoints/api';
 
-import { DatabaseConfig, UserAgent } from './config/config';
-import { Payload } from '../models/Payload';
 import { Character, Esi } from 'node-esi-stackdriver';
+import { CookieOptions, DatabaseConfig, UserAgent } from './config/config';
+import { Payload } from '../models/Payload';
 import Corporation from './endpoints/corp.js';
-import { isArray } from 'util';
 
 const firebase = admin.initializeApp({
   credential: admin.credential.cert(cert as admin.ServiceAccount),
@@ -153,6 +152,7 @@ const init = async (): Promise<Server> => {
   });
 
   server.state('profile_jwt', {
+    ...CookieOptions,
     isSameSite: false,
     isSecure: isProd,
     isHttpOnly: true,

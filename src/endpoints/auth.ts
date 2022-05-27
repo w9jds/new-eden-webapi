@@ -18,7 +18,7 @@ import { CorporationConfig } from '../../models/Corporation';
 import {
     AccountsOrigin, RegisterRedirect, RegisterClientId,
     RegisterSecret, LoginRedirect, LoginClientId, LoginSecret,
-    EveScopes, DefaultEveScopes, CookieOptions
+    EveScopes, DefaultEveScopes
 } from '../config/config';
 import { EveTokens, Verification } from '../../models/Auth';
 
@@ -155,7 +155,7 @@ export default class Authentication {
       throw badRequest('Invalid Request, redirect_to parameter is required.');
     }
 
-    h.unstate('profile_jwt', CookieOptions);
+    h.unstate('profile_jwt');
     return h.redirect(<string>request.query.redirect_to);
   }
 
@@ -220,7 +220,7 @@ export default class Authentication {
     } else {
       const verification = verify(tokens.access_token);
       const character: database.DataSnapshot = await this.getCharacter(verification.characterId);
-  
+
       if (!character.exists()) {
         switch (state.type) {
           case RequestType.REGISTER:
@@ -235,14 +235,14 @@ export default class Authentication {
             return h.redirect(state.redirect);
         }
       }
-  
+
       if (character.hasChild('sso')) {
           let permissions: Permissions = character.child('sso').val();
           await revoke(permissions.accessToken, RegisterClientId, RegisterSecret);
       }
-  
+
       await character.child('sso').ref.set(this.createCharacter(tokens, verification, state.accountId).sso);
-  
+
       let token = this.buildProfileToken(state.redirect, state.accountId, verification.characterId);
       return this.redirect(state.redirect, token, state.response_type, h);
     }
@@ -355,7 +355,6 @@ export default class Authentication {
     if (request.params.userId && request.params.userId != authorization.mainId) {
       const updatedToken = this.buildProfileToken(authorization.aud, authorization.accountId, request.params.userId);
       h.state('profile_jwt', updatedToken, {
-        ...CookieOptions,
         ttl: 1000 * 60 * 60 * 24 * 365 * 10
       });
     }
@@ -409,12 +408,13 @@ export default class Authentication {
         return h.redirect(`${uri}#${token}`)
       case SessionType.PERSISTENT:
         h.state('profile_jwt', token, {
-          ...CookieOptions,
           ttl: 1000 * 60 * 60 * 24 * 365 * 10
         });
         return h.redirect(`${uri}`);
       case SessionType.SESSION:
-        h.state('profile_jwt', token, CookieOptions);
+        h.state('profile_jwt', token, {
+          ttl: null
+        });
         return h.redirect(`${uri}`);
     }
   }

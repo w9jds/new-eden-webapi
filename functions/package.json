@@ -11,31 +11,31 @@
   },
   "main": "lib/functions/src/index.js",
   "dependencies": {
-    "@google-cloud/bigquery": "^5.9.1",
-    "@google-cloud/tasks": "^2.4.2",
+    "@google-cloud/bigquery": "^5.12.0",
+    "@google-cloud/tasks": "^2.6.0",
     "bluebird": "^3.7.2",
-    "date-fns": "^2.25.0",
-    "firebase-admin": "~10.0.0",
-    "firebase-functions": "^3.15.7",
+    "date-fns": "^2.28.0",
+    "firebase-admin": "~10.2.0",
+    "firebase-functions": "^3.21.2",
     "jsonwebtoken": "^8.5.1",
     "node-esi-stackdriver": "^1.0.38",
-    "node-fetch": "^2.6.5",
-    "tslib": "^2.3.1"
+    "node-fetch": "^2.6.7",
+    "tslib": "^2.4.0"
   },
   "devDependencies": {
     "@types/bluebird": "^3.5.36",
-    "@types/node": "^16.11.6",
-    "@types/node-fetch": "^3.0.3",
-    "@typescript-eslint/eslint-plugin": "^5.2.0",
-    "@typescript-eslint/parser": "^5.2.0",
-    "eslint": "^8.1.0",
+    "@types/node": "^17.0.35",
+    "@types/node-fetch": "^2.6.1",
+    "@typescript-eslint/eslint-plugin": "^5.26.0",
+    "@typescript-eslint/parser": "^5.26.0",
+    "eslint": "^8.16.0",
     "eslint-config-google": "^0.14.0",
-    "eslint-plugin-import": "^2.25.2",
-    "firebase-functions-test": "^0.3.3",
-    "typescript": "~4.4.4"
+    "eslint-plugin-import": "^2.26.0",
+    "firebase-functions-test": "^2.2.0",
+    "typescript": "~4.7.2"
   },
   "engines": {
-    "node": "14"
+    "node": "16"
   },
   "private": true
 }

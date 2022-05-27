@@ -10,8 +10,12 @@ export default class Corporation {
   constructor(private firebase: database.Database) { }
 
   private getAccountsForCorp = async (corpId: number): Promise<Record<string, MemberAccount>> => {
-    const characters = await this.firebase.ref('characters').orderByChild('corpId').equalTo(corpId).once('value');
     let accounts: Record<string, MemberAccount> = {};
+    const characters = await this.firebase
+      .ref('characters')
+      .orderByChild('corpId')
+      .equalTo(corpId)
+      .once('value');
 
     const matches: Record<number, Character> = characters.val();
     for (let id in matches) {
@@ -26,7 +30,10 @@ export default class Corporation {
   }
 
   private getAccountDetails = async (character: Character): Promise<MemberAccount> => {
-    const user = await this.firebase.ref(`users/${character.accountId}`).once('value');
+    const user = await this.firebase
+      .ref(`users/${character.accountId}`)
+      .once('value');
+
     const account = user.val() as Account;
     const details = await Promise.all([
       this.firebase.ref(`characters`).orderByChild('accountId')
