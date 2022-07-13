@@ -1,5 +1,4 @@
 import { database } from 'firebase-admin';
-import { Response as FetchResponse } from 'node-fetch';
 import { https, Response } from 'firebase-functions';
 import { addSeconds } from 'date-fns';
 import { Character } from 'node-esi-stackdriver';

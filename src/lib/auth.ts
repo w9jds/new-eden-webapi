@@ -1,8 +1,8 @@
 import { UserAgent } from '../config/config';
-import fetch, { Response } from 'node-fetch';
 import { ErrorResponse, Logger } from 'node-esi-stackdriver';
 import { decode } from 'jsonwebtoken';
 import { EveTokens, TokenPayload, Verification } from '../../models/Auth';
+import fetch, { Response } from 'node-fetch';
 
 const logging = new Logger('auth', { projectId: 'new-eden-storage-a5c23' });
 const headers = {
@@ -28,10 +28,10 @@ const verifyResponse = async (method: string, response: Response): Promise<any |
 }
 
 export const verify = (token: string): Verification => {
-  const payload: TokenPayload = decode(token, { 
-    json: true 
+  const payload: TokenPayload = decode(token, {
+    json: true
   });
-  
+
   return {
     characterId: +payload.sub.split(':')[2],
     name: payload.name,

@@ -126,7 +126,7 @@ const jwtScheme = (_server: Server, _) => ({
 });
 
 const init = async (): Promise<Server> => {
-  const isProd: boolean = process.env.NODE_ENV == 'production';
+  const isProd: boolean = process.env.NODE_ENV === 'production';
 
   server.route({
     method : 'OPTIONS',
@@ -153,6 +153,7 @@ const init = async (): Promise<Server> => {
 
   server.state('profile_jwt', {
     ...CookieOptions,
+    domain: 'localhost',
     isSameSite: false,
     isSecure: isProd,
     isHttpOnly: true,

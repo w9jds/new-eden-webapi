@@ -84,6 +84,9 @@ export const onAccessGroupDeleted = database.ref('maps/{mapId}/accesslist/{group
 export const onAccessGroupUpdated = database.ref('maps/{mapId}/accesslist/{groupId}/write')
   .onUpdate(accessLists.onAccessGroupUpdated);
 
+export const onChangeRequest = database.ref('tasks/{userId}/access_list/{taskId}')
+  .onCreate(accessLists.onChangeRequest);
+
 /**
  * Analytics
  */

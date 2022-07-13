@@ -1,8 +1,10 @@
+import { Map } from '../../../models/Map';
+import { AccessListChange, AccessChangeTypes } from '../../../models/Tasks';
+
 import { database } from 'firebase-admin';
 import { EventContext, Change } from 'firebase-functions';
 import { UserAgent } from '../config/constants';
 import { Esi } from 'node-esi-stackdriver';
-import { Map } from '../../../models/Map';
 
 export default class AccessLists {
   private esi: Esi;
@@ -62,5 +64,20 @@ export default class AccessLists {
         .ref(`access_lists/${context.params.groupId}/${context.params.mapId}/write`)
         .set(change.after.val());
     }
+  };
+
+  public onChangeRequest = async (snapshot: database.DataSnapshot, context?: EventContext) => {
+    const payload: AccessListChange = snapshot.val();
+
+    if (payload.type === AccessChangeTypes.LEAVE) {
+      return Promise.all([
+        global.firebase
+          .ref(`maps/${payload.mapId}/accesslist/${context.params.userId}`)
+          .remove(),
+        snapshot.ref.remove(),
+      ]);
+    }
+
+    return Promise.resolve();
   };
 }

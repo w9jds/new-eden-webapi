@@ -58,14 +58,6 @@ export const createRefreshTask = async (change: Change<DataSnapshot>, context: E
   }
 
   const now = new Date();
-  let scheduleTime;
-
-  if (!isAfter(now, expiresAt)) {
-    scheduleTime = {
-      seconds: expiresAt.getTime() / 1000,
-    };
-  }
-
   const parent = client.queuePath(ProjectId, TaskConfigs.Location, queueName);
   const serialized = JSON.stringify({ characterId: context.params.characterId });
   const body = Buffer.from(serialized).toString('base64');
@@ -96,6 +88,6 @@ export const createRefreshTask = async (change: Change<DataSnapshot>, context: E
   await client.createTask({ parent, task });
   return taskRef.set({
     name: taskName,
-    scheduleTime: !isAfter(now, expiresAt) ? expiresAt : Date.now(),
+    scheduleTime: !isAfter(now, expiresAt) ? expiresAt : now,
   });
 };
