@@ -52,12 +52,14 @@ const parseState: RouteOptions = {
 const firebaseScheme = (_server: Server, _) => ({
   authenticate: async (request: Request, h: ResponseToolkit) => {
     const header = request.headers.authorization;
-    if (!header || header.split(' ')[0] != 'Bearer') {
-      throw unauthorized();
+    if (!header || header.split(' ')[0] !== 'Bearer') {
+      console.info(`[401] ${request.path} - ${header}`);
+      throw unauthorized('Authentication Bearer token not provided');
     }
 
     const decodedToken = await admin.auth().verifyIdToken(header.split(' ')[1]);
     if (decodedToken.uid != request.params.userId) {
+      console.info(`[401] ${request.path} - invalid_client ${decodedToken.uid} != ${request.params.userId}`);
       throw unauthorized('invalid_client: Token is for another user');
     }
 
@@ -73,18 +75,21 @@ const firebaseScheme = (_server: Server, _) => ({
 const directorScheme = (_server: Server, _) => ({
   authenticate: async (request: Request, h: ResponseToolkit) => {
     const header = request.headers.authorization;
-    if (!header || header.split(' ')[0] != 'Bearer') {
-      throw unauthorized();
+    if (!header || header.split(' ')[0] !== 'Bearer') {
+      console.info(`[401] ${request.path} - ${header}`);
+      throw unauthorized('Authentication Bearer token not provided');
     }
 
     const decodedToken = await admin.auth().verifyIdToken(header.split(' ')[1]);
     const snapshot = await admin.database().ref(`characters/${decodedToken.uid}`).once('value');
     const character: Character = snapshot.val();
     if (+request.params.corpId != character.corpId) {
+      console.info(`[401] ${request.path} - invalid_corp ${request.params.corpId} != ${character.corpId}`);
       throw unauthorized('invalid_corp: User is not in this corp');
     }
 
     if (!snapshot.hasChild('roles') || !snapshot.hasChild('roles/roles') || character.roles.roles.indexOf('Director') < 0) {
+      console.info(`[401] ${request.path} - invalid_user ${snapshot.key} is not a director`);
       throw unauthorized('invalid_user: User is not a director');
     }
 
@@ -99,10 +104,12 @@ const directorScheme = (_server: Server, _) => ({
 const jwtScheme = (_server: Server, _) => ({
   authenticate: (request: Request, h: ResponseToolkit) => {
     const header = request.headers.authorization;
-    if ((!header || header.split(' ')[0] != 'Bearer') && !request.state.profile_jwt && !request.state.profile_session) {
+    if ((!header || header.split(' ')[0] !== 'Bearer') && !request.state.profile_jwt && !request.state.profile_session) {
+      console.info(`[401] ${request.path} -  header: ${header} profile_jwt: ${request.state?.profile_jwt} session: ${request.state?.profile_session}`);
+
       h.unstate('profile_jwt');
       h.unstate('profile_session');
-      throw unauthorized();
+      throw unauthorized('Authentication Bearer token not provided');
     }
 
     try {
@@ -110,16 +117,24 @@ const jwtScheme = (_server: Server, _) => ({
       const token: Payload = verifyJwt(payload);
 
       if (token && token.aud) {
-        return h.authenticated({ credentials: { user: token } });
+        return h.authenticated({
+          credentials: {
+            user: token
+          }
+        });
       } else {
         h.unstate('profile_jwt');
         h.unstate('profile_session');
-        throw unauthorized();
+
+        console.info(`[401] ${request.path} - invalid_token ${JSON.stringify(token)}`)
+        throw unauthorized('Invalid JWT Token');
       }
     }
     catch(error) {
       h.unstate('profile_jwt');
       h.unstate('profile_session');
+
+      console.error(JSON.stringify(error));
       throw unauthorized(error);
     }
   }
@@ -153,7 +168,6 @@ const init = async (): Promise<Server> => {
 
   server.state('profile_jwt', {
     ...CookieOptions,
-    domain: 'localhost',
     isSameSite: false,
     isSecure: isProd,
     isHttpOnly: true,
@@ -169,7 +183,6 @@ const init = async (): Promise<Server> => {
   createDiscordRoutes();
 
   await server.start();
-
   return server;
 }
 

@@ -1,5 +1,5 @@
 import { Request, ResponseToolkit, ResponseObject } from '@hapi/hapi';
-import { badRequest, unauthorized } from '@hapi/boom';
+import { badRequest, unauthorized, internal } from '@hapi/boom';
 
 import * as CryptoJs from 'crypto-js';
 import * as atob from 'atob';
@@ -45,7 +45,7 @@ export const verifyJwt = (token): Payload => {
     return Verify(token, process.env.JWT_SECRET_KEY) as Payload;
   }
   catch(error) {
-    console.error(token);
+    console.error(JSON.stringify(token));
     throw unauthorized(error);
   }
 }
@@ -162,8 +162,9 @@ export default class Authentication {
   public loginCallbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
     const state: State = decryptState(request.query.state) as State;
     const tokens = await login(<string>request.query.code, LoginClientId, LoginSecret);
-    if ('error' in tokens) {
 
+    if ('error' in tokens) {
+      throw internal(tokens.content);
     } else {
       const verification = verify(tokens.access_token);
       const character: database.DataSnapshot = await this.getCharacter(verification.characterId);
@@ -197,7 +198,7 @@ export default class Authentication {
       throw badRequest('Invalid Request, redirect_to parameter is required.');
     }
 
-    if (!isValidSessionType(<string>request.query.response_type)) {
+    if (!isValidSessionType(request.query.response_type)) {
       throw badRequest('Invalid Request, valid type parameter is required.');
     }
 
@@ -205,7 +206,7 @@ export default class Authentication {
       aud: request.info.host,
       type: RequestType.REGISTER,
       response_type: request.query.response_type,
-      redirect: decodeURI(<string>request.query.redirect_to)
+      redirect: decodeURI(request.query.redirect_to)
     });
 
     return h.redirect(`https://login.eveonline.com/v2/oauth/authorize?response_type=code&redirect_uri=${RegisterRedirect}`
@@ -215,8 +216,9 @@ export default class Authentication {
   public registerCallbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
     const state: State = decryptState(request.query['state']) as State;
     const tokens = await login(<string>request.query.code, RegisterClientId, RegisterSecret);
-    if ('error' in tokens) {
 
+    if ('error' in tokens) {
+      throw internal(tokens.content);
     } else {
       const verification = verify(tokens.access_token);
       const character: database.DataSnapshot = await this.getCharacter(verification.characterId);
@@ -279,7 +281,7 @@ export default class Authentication {
       }
     }
 
-    return h.redirect(`/auth/register?redirect_to=${decodeURIComponent(<string>request.query.redirect_to)}`
+    return h.redirect(`/auth/register?redirect_to=${decodeURIComponent(request.query.redirect_to)}`
       + `&response_type=none&scopes=${state.scopes.join('%20')}`);
   }
 
@@ -288,13 +290,15 @@ export default class Authentication {
     if (!request.query.redirect_to) {
       throw badRequest('Invalid Request, redirect_to parameter is required.');
     }
+
     if (authorization.aud !== request.info.host) {
+      console.info(`401 - invalid_client ${authorization.aud} != ${request.info.host}`);
       throw unauthorized('invalid_client: Token is for another client');
     }
 
     let profile: database.DataSnapshot = await this.getProfile(authorization.accountId);
     if (!profile.exists()) {
-      throw unauthorized();
+      throw badRequest('Character already exists in the system');
     }
 
     let cipherText = encryptState({
@@ -331,6 +335,7 @@ export default class Authentication {
     }
 
     if (character.child('accountId').val() !== authorization.accountId) {
+      console.info(`401 - Character account ${character.child('accountId').val()} not on ${authorization.accountId}`);
       throw unauthorized('Character not part of provided profile!');
     }
 

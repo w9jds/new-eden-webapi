@@ -6,7 +6,7 @@
   "scripts": {
     "clean": "rm -rf out",
     "build": "tsc -p ./src",
-    "build-prod": "npm run build && docker build -t chingy-webapi ."
+    "build-prod": "npm run build && docker build -t new-eden-webapi ."
   },
   "dependencies": {
     "@google-cloud/logging": "^10.0.4",
@@ -25,9 +25,10 @@
   },
   "devDependencies": {
     "@types/crypto-js": "^4.1.1",
+    "@types/hapi__hapi": "^20.0.12",
     "@types/jsonwebtoken": "^8.5.8",
-    "@types/node-fetch": "^2.6.2",
     "@types/node": "^18.0.3",
+    "@types/node-fetch": "^2.6.2",
     "tslib": "^2.4.0",
     "tslint": "^6.1.3",
     "typescript": "^4.7.4"

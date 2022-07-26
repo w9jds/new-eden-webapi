@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - name: api
-        image: us.gcr.io/new-eden-storage-a5c23/chingy-webapi:v1.98
+        image: us.gcr.io/new-eden-storage-a5c23/chingy-webapi:v1.104
         ports:
         - containerPort: 8000
 ---
@@ -41,7 +41,7 @@ spec:
   selector:
     run: api
 ---
-apiVersion: networking.gke.io/v1beta2
+apiVersion: networking.gke.io/v1
 kind: ManagedCertificate
 metadata:
   name: new-eden-tls
