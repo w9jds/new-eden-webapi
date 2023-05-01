@@ -36,8 +36,9 @@ enum SessionType {
 }
 
 enum ErrorType {
+  CHARACTER_ALREADY_EXISTS = 'character_already_exists',
   CHARACTER_NOT_FOUND = 'character_not_found',
-  MISSING_SCOPES = 'missing_scopes'
+  MISSING_SCOPES = 'missing_scopes',
 }
 
 export const verifyJwt = (token): Payload => {
@@ -198,7 +199,7 @@ export default class Authentication {
       const character: database.DataSnapshot = await this.getCharacter(verification.characterId);
 
       if (!character.exists()) {
-        return h.redirect(`${AccountsOrigin}?type=character_not_found&redirect_to=${state.redirect}`
+        return h.redirect(`${AccountsOrigin}/login?type=character_not_found&redirect_to=${state.redirect}`
             + `&scopes=${state.scopes.join('%20')}`);
       }
 
@@ -213,7 +214,7 @@ export default class Authentication {
           scopes: missingScopes
         });
 
-        return this.redirect(`${AccountsOrigin}?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}`
+        return this.redirect(`${AccountsOrigin}/login?type=missing_scopes&name=${encodeURIComponent(character.child('name').val())}`
           + `&redirect=${state.redirect}&state=${cipherText}`, token, state.response_type, h);
       }
 
@@ -232,7 +233,7 @@ export default class Authentication {
 
     let cipherText = encryptState({
       aud: request.info.host,
-      type: RequestType.REGISTER,
+      type: request.query['type'] || RequestType.REGISTER,
       response_type: request.query.response_type,
       redirect: decodeURI(request.query.redirect_to)
     });
@@ -264,6 +265,8 @@ export default class Authentication {
             ]);
             return h.redirect(state.redirect);
         }
+      } else if (state.type !== RequestType.SCOPES) {
+        return h.redirect(`${AccountsOrigin}/login?type=${ErrorType.CHARACTER_ALREADY_EXISTS}`);
       }
 
       if (character.hasChild('sso')) {
@@ -310,7 +313,7 @@ export default class Authentication {
     }
 
     return h.redirect(`/auth/register?redirect_to=${decodeURIComponent(request.query.redirect_to)}`
-      + `&response_type=none&scopes=${state.scopes.join('%20')}`);
+      + `&response_type=none&scopes=${state.scopes.join('%20')}&type=scopes`);
   }
 
   public addCharacterHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
@@ -358,7 +361,7 @@ export default class Authentication {
     if (!character.exists()) {
       return h.response({
         error: ErrorType.CHARACTER_NOT_FOUND,
-        redirect: `${AccountsOrigin}?type=${ErrorType.CHARACTER_NOT_FOUND}&redirect_to=${request.info.referrer}&scopes=${scopes.join('%20')}`
+        redirect: `${AccountsOrigin}/login?type=${ErrorType.CHARACTER_NOT_FOUND}&redirect_to=${request.info.referrer}&scopes=${scopes.join('%20')}`
       }).code(503);
     }
 
@@ -378,7 +381,7 @@ export default class Authentication {
 
       return h.response({
         error: ErrorType.MISSING_SCOPES,
-        redirect: `${AccountsOrigin}?type=${ErrorType.MISSING_SCOPES}&name=${encodeURIComponent(character.child('name').val())}`
+        redirect: `${AccountsOrigin}/login?type=${ErrorType.MISSING_SCOPES}&name=${encodeURIComponent(character.child('name').val())}`
           + `&redirect=${request.info.referrer}&state=${cipherText}`
       }).code(503);
     }

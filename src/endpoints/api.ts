@@ -2,6 +2,7 @@ import { Request, ResponseToolkit, ResponseObject } from '@hapi/hapi';
 import { badRequest } from '@hapi/boom';
 import { database } from 'firebase-admin';
 import { Esi, Character } from 'node-esi-stackdriver';
+import fetch from 'node-fetch';
 
 import { PostBody } from '../../models/Routes';
 
@@ -16,6 +17,17 @@ export default class Api {
     const response = await this.esi.setWaypoint(credentials, body.location, body.setType);
     if (response.status === 204) {
       return h.response().code(204);
+    }
+
+    throw badRequest();
+  }
+
+  public theraChain = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
+    const response = await fetch('http://www.eve-scout.com/api/wormholes');
+
+    if (response.status === 200) {
+      const payload = await response.json();
+      return h.response(payload);
     }
 
     throw badRequest();
