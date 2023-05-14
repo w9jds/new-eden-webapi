@@ -359,6 +359,7 @@ export default class Authentication {
 
     if (request.params.userId && request.params.userId != authorization.mainId) {
       const updatedToken = this.buildProfileToken(authorization.aud, authorization.accountId, request.params.userId);
+      h.unstate('profile_jwt');
       h.state('profile_jwt', updatedToken, {
         ttl: 1000 * 60 * 60 * 24 * 365 * 10
       });

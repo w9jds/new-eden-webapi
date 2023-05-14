@@ -262,17 +262,17 @@ export default class DiscordHandlers {
   // and add the user to any guild they may now belong to with the update affiliations
   public onCorpUpdate = async (_change: Change<database.DataSnapshot>, context?: EventContext): Promise<void> => {
     console.info('Searching for new associated servers that are available.');
-    await this.updateAssociations(context.params.userId);
+    await this.updateAssociations(+context.params.userId);
     console.info('Updating roles on all registered Discord servers.');
-    await this.updateRolesFromId(context.params.userId);
+    await this.updateRolesFromId(+context.params.userId);
   };
 
   public onTitlesWrite = async (change: Change<database.DataSnapshot>, context?: EventContext) => {
-    await this.updateRolesFromId(context.params.userId);
+    await this.updateRolesFromId(+context.params.userId);
   };
 
   public onMemberForWrite = async (change: Change<database.DataSnapshot>, context?: EventContext) => {
-    await this.updateRolesFromId(context.params.userId);
+    await this.updateRolesFromId(+context.params.userId);
   };
 
   public onMainCharacterUpdated = async (change: Change<database.DataSnapshot>, context?: EventContext): Promise<any> => {

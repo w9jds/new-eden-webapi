@@ -1,8 +1,8 @@
 import { auth } from 'firebase-admin';
 import { EventContext, Change } from 'firebase-functions';
-import { DataSnapshot } from 'firebase-functions/lib/providers/database';
 import { v2beta3 } from '@google-cloud/tasks';
 
+import { DataSnapshot } from 'firebase-functions/lib/common/providers/database';
 import { ProjectId, TaskConfigs } from '../config/constants';
 import { Permissions } from 'node-esi-stackdriver';
 import { isAfter } from 'date-fns';

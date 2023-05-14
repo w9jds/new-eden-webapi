@@ -9,7 +9,7 @@ import CharacterHandlers from './modules/character';
 import LocationHandlers from './modules/locations';
 import AccessLists from './modules/accesslists';
 
-import { updateSystemStatistics } from './modules/statistics';
+import { updateSystemStatistics, updateTheraConnections } from './modules/universe';
 import { onRolesChanged, createRefreshTask } from './modules/auth';
 import { signatureUpdated, signatureCreated, signatureDeleted } from './modules/analytics';
 import { onRefreshToken } from './modules/taskHandlers';
@@ -34,6 +34,9 @@ const locations = new LocationHandlers();
 
 export const statistics = pubsub.schedule('0 * * * *')
   .onRun(updateSystemStatistics);
+
+export const thera = pubsub.schedule('*/5 * * * *')
+  .onRun(updateTheraConnections);
 
 /**
  * Database Data Updates

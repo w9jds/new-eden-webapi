@@ -4,7 +4,7 @@ import { addSeconds } from 'date-fns';
 import { Character } from 'node-esi-stackdriver';
 import { refresh, verify } from '../lib/Auth';
 
-const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Reference, resp: FetchResponse, result: Response): Promise<any> => {
+const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Reference, resp, result: Response): Promise<any> => {
   let content;
   const payload = {
     error: true,

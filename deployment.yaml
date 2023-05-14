@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - name: api
-        image: us.gcr.io/new-eden-storage-a5c23/chingy-webapi:v1.104
+        image: us.gcr.io/new-eden-storage-a5c23/chingy-webapi:v1.107
         ports:
         - containerPort: 8000
 ---

@@ -169,7 +169,6 @@ const init = async (): Promise<Server> => {
   server.state('profile_jwt', {
     ...CookieOptions,
     isSameSite: false,
-    isSecure: isProd,
     isHttpOnly: true,
     encoding: 'iron',
     password: process.env.COOKIE_PASSWORD,

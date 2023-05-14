@@ -1,8 +1,9 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import { Change, EventContext } from 'firebase-functions';
-import { DataSnapshot } from 'firebase-functions/lib/providers/database';
+
 import { Character } from 'node-esi-stackdriver';
 import { Signature } from '../../../models/Signature';
+import { DataSnapshot } from 'firebase-functions/lib/common/providers/database';
 
 const getTable = async (tableName: string) => {
   const bigQuery = new BigQuery();

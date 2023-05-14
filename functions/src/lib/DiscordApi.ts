@@ -9,7 +9,7 @@ export default class DiscordApi {
   constructor(private clientId: string, private clientSecret: string, token: string) {
     this.headers = {
       'Authorization': `Bot ${token}`,
-      'ser-Agent': 'Aura Bot Cloud Functions (https://github.com/w9jds, v1) - Jeremy Shore - w9jds@live.com',
+      'User-Agent': 'Aura Bot Cloud Functions (https://github.com/w9jds, v1) - Jeremy Shore - w9jds@live.com',
     };
   }
 

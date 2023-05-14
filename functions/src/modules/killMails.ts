@@ -1,5 +1,5 @@
+import { KillMail } from '../../../models/KillMails';
 import { database, Change, EventContext } from 'firebase-functions';
-import {KillMail} from '../../../models/KillMails';
 import { compareAsc } from 'date-fns';
 
 export const onNewKillAdded = async (change: Change<database.DataSnapshot>, context?: EventContext) => {
