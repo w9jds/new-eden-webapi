@@ -244,7 +244,17 @@ const createAuthRoutes = () => {
       handler: authentication.logoutHandler,
       ...parseState
     }
-  })
+  });
+
+  server.route({
+    method: 'GET',
+    path: '/auth/close',
+    options: {
+      auth: 'jwt-auth',
+      handler: authentication.closeHandler,
+      ...parseState,
+    }
+  });
 
   server.route({
     method: 'GET',

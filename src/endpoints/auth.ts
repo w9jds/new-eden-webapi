@@ -159,6 +159,34 @@ export default class Authentication {
     return h.redirect(<string>request.query.redirect_to);
   }
 
+  public closeHandler = async (request: Request, h: ResponseToolkit) => {
+    const authorization = request.auth.credentials.user as Payload;
+
+    if (!request.query['redirect_to']) {
+      throw badRequest('Invalid Request, redirect_to parameter is required.');
+    }
+
+    if (authorization.aud !== request.info.host) {
+      console.info(`401 - invalid_client ${authorization.aud} != ${request.info.host}`);
+      throw unauthorized('invalid_client: Token is for another client');
+    }
+
+    const profile: database.DataSnapshot = await this.getProfile(authorization.accountId);
+    if (!profile.exists()) {
+      throw badRequest('Account not found!')
+    }
+
+    const characters = await this.getAccountCharacters(authorization.accountId);
+
+    profile.ref.remove();
+    characters.forEach(character => {
+      character.ref.remove();
+    });
+
+    h.unstate('profile_jwt');
+    return h.redirect(<string>request.query.redirect_to);
+  }
+
   public loginCallbackHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
     const state: State = decryptState(request.query.state) as State;
     const tokens = await login(<string>request.query.code, LoginClientId, LoginSecret);
@@ -286,7 +314,7 @@ export default class Authentication {
   }
 
   public addCharacterHandler = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
-    let authorization = request.auth.credentials.user as Payload;
+    const authorization = request.auth.credentials.user as Payload;
     if (!request.query.redirect_to) {
       throw badRequest('Invalid Request, redirect_to parameter is required.');
     }
@@ -296,9 +324,9 @@ export default class Authentication {
       throw unauthorized('invalid_client: Token is for another client');
     }
 
-    let profile: database.DataSnapshot = await this.getProfile(authorization.accountId);
+    const profile: database.DataSnapshot = await this.getProfile(authorization.accountId);
     if (!profile.exists()) {
-      throw badRequest('Character already exists in the system');
+      throw badRequest('Account not found!');
     }
 
     let cipherText = encryptState({
@@ -386,6 +414,9 @@ export default class Authentication {
 
   private getCharacter = (characterId: number | string): Promise<database.DataSnapshot> =>
     this.firebase.ref(`characters/${characterId}`).once('value');
+
+  private getAccountCharacters = (accountId: number | string): Promise<database.DataSnapshot> =>
+    this.firebase.ref(`characters`).orderByChild('accountId').equalTo(accountId).once('value');
 
   private getProfile = (profileId: number | string): Promise<database.DataSnapshot> =>
     this.firebase.ref(`users/${profileId}`).once('value');
