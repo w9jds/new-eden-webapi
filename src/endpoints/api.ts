@@ -22,14 +22,4 @@ export default class Api {
     throw badRequest();
   }
 
-  public theraChain = async (request: Request, h: ResponseToolkit): Promise<ResponseObject> => {
-    const response = await fetch('http://www.eve-scout.com/api/wormholes');
-
-    if (response.status === 200) {
-      const payload = await response.json();
-      return h.response(payload);
-    }
-
-    throw badRequest();
-  }
 }

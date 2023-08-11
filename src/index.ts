@@ -204,16 +204,6 @@ const createApiRoutes = () => {
     }
   });
 
-  server.route({
-    method: 'GET',
-    path: '/api/thera',
-    handler: api.theraChain,
-    options: {
-      auth: 'firebase-auth',
-      ...parseState,
-      ...acceptCors,
-    }
-  });
 }
 
 const createCorpRoutes = () => {
