@@ -22,7 +22,7 @@
     "jsonwebtoken": "^9.0.0",
     "node-esi-stackdriver": "^1.0.38",
     "node-fetch": "^2.6.7",
-    "query-string": "^7.1.1"
+    "query-string": "^8.1.0"
   },
   "devDependencies": {
     "@types/crypto-js": "^4.1.1",

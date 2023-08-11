@@ -2,6 +2,7 @@ import { Request, ResponseToolkit, ResponseObject } from '@hapi/hapi';
 import { badRequest } from '@hapi/boom';
 import { database } from 'firebase-admin';
 import { Esi, Character } from 'node-esi-stackdriver';
+import fetch from 'node-fetch';
 
 import { PostBody } from '../../models/Routes';
 
@@ -20,4 +21,5 @@ export default class Api {
 
     throw badRequest();
   }
+
 }

@@ -168,7 +168,9 @@ const init = async (): Promise<Server> => {
 
   server.state('profile_jwt', {
     ...CookieOptions,
+    // isSameSite: 'None',
     isSameSite: false,
+    isSecure: isProd,
     isHttpOnly: true,
     encoding: 'iron',
     password: process.env.COOKIE_PASSWORD,
@@ -201,6 +203,7 @@ const createApiRoutes = () => {
       ...acceptCors
     }
   });
+
 }
 
 const createCorpRoutes = () => {
