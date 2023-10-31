@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import fetch from 'node-fetch';
 import { decode } from 'jsonwebtoken';
 import { config } from 'firebase-functions';

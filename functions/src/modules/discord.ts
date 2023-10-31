@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { database } from 'firebase-admin';
 import { map } from 'bluebird';
 import { Change, EventContext } from 'firebase-functions';
@@ -255,7 +256,7 @@ export default class DiscordHandlers {
     }
   };
 
-  public onNewAccount = async (snapshot: database.DataSnapshot, context?: EventContext): Promise<any> =>
+  public onNewAccount = async (snapshot: database.DataSnapshot): Promise<any> =>
     this.manageAccount(snapshot.val() as DiscordAccount);
 
   // Update Discord roles for ALL registered guilds this member belongs to,

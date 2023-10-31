@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { auth } from 'firebase-admin';
 import { EventContext, Change } from 'firebase-functions';
-import { v2beta3 } from '@google-cloud/tasks';
+import { CloudTasksClient } from '@google-cloud/tasks';
 
 import { DataSnapshot } from 'firebase-functions/lib/common/providers/database';
 import { ProjectId, TaskConfigs } from '../config/constants';
@@ -37,7 +38,7 @@ export const createRefreshTask = async (change: Change<DataSnapshot>, context: E
 
   const expiresAt = new Date(sso.expiresAt);
   const scheduled = await taskRef.once('value');
-  const client = new v2beta3.CloudTasksClient();
+  const client = new CloudTasksClient();
   const queueName = 'refresh-token-queue';
 
   if (scheduled && scheduled.exists()) {
@@ -85,7 +86,7 @@ export const createRefreshTask = async (change: Change<DataSnapshot>, context: E
     };
   }
 
-  await client.createTask({ parent, task });
+  await client.createTask({ parent, task }, { maxRetries: 2 });
   return taskRef.set({
     name: taskName,
     scheduleTime: !isAfter(now, expiresAt) ? expiresAt : now,

@@ -5,9 +5,9 @@ import { Character } from 'node-esi-stackdriver';
 import { Signature } from '../../../models/Signature';
 import { DataSnapshot } from 'firebase-functions/lib/common/providers/database';
 
-const getTable = async (tableName: string) => {
+const getTable = async (dataset: string, tableName: string) => {
   const bigQuery = new BigQuery();
-  const table = bigQuery.dataset('analytics').table(tableName);
+  const table = bigQuery.dataset(dataset).table(tableName);
 
   await table.exists().catch(err => console.error(JSON.stringify(err)));
 
@@ -18,7 +18,7 @@ export const signatureCreated = async (snapshot: DataSnapshot, context: EventCon
   const signature: Signature = snapshot.val();
 
   if (signature.name && signature.group && signature.group !== 'combat' && signature.group !== 'ore') {
-    const table = await getTable('signature_events');
+    const table = await getTable('analytics', 'signature_events');
 
     const authUser = await global.firebase.ref(`characters/${context.auth.uid}`).once('value');
     const character: Character = authUser.val();
@@ -55,7 +55,7 @@ export const signatureUpdated = async (change: Change<DataSnapshot>, context: Ev
   const current: Signature = change.after.val();
 
   if (!old.name && current.name && current.group && current.group !== 'combat' && current.group !== 'ore') {
-    const table = await getTable('signature_events');
+    const table = await getTable('analytics', 'signature_events');
     const authUser = await global.firebase.ref(`characters/${context.auth.uid}`).once('value');
     const character: Character = authUser.val();
 
@@ -90,7 +90,7 @@ export const signatureDeleted = async (snapshot: DataSnapshot, context: EventCon
   const signature: Signature = snapshot.val();
 
   if (signature.name && signature.group && signature.group === 'wormhole') {
-    const table = await getTable('signature_events');
+    const table = await getTable('analytics', 'signature_events');
 
     const authUser = await global.firebase.ref(`characters/${context.auth.uid}`).once('value');
     const character: Character = authUser.val();
@@ -120,4 +120,21 @@ export const signatureDeleted = async (snapshot: DataSnapshot, context: EventCon
     await table.insert([row])
       .catch(err => console.error(JSON.stringify(err)));
   }
+};
+
+export const pricesUpdated = async (change: Change<DataSnapshot>, context: EventContext) => {
+  const current: DataSnapshot = change.after;
+  const rows = [];
+
+  current.forEach(child => {
+    rows.push({
+      market: context.params.marketId,
+      type_id: child.key,
+      ...child.val(),
+    });
+  });
+
+  const table = await getTable('market', 'price_history');
+  await table.insert(rows)
+    .catch(err => console.error(JSON.stringify(err)));
 };

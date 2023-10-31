@@ -61,6 +61,6 @@ export const updateTheraConnections = async () => {
       return current;
     }, {});
 
-    return global.firebase.ref('universe/thera').update(updates);
+    return global.firebase.ref('universe/thera').set(updates);
   }
 };

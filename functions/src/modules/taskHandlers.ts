@@ -1,8 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { database } from 'firebase-admin';
 import { https, Response } from 'firebase-functions';
 import { addSeconds } from 'date-fns';
 import { Character } from 'node-esi-stackdriver';
 import { refresh, verify } from '../lib/Auth';
+
 
 const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Reference, resp, result: Response): Promise<any> => {
   let content;
