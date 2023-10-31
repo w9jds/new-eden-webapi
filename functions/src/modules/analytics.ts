@@ -122,19 +122,19 @@ export const signatureDeleted = async (snapshot: DataSnapshot, context: EventCon
   }
 };
 
-export const pricesUpdated = async (change: Change<DataSnapshot>, context: EventContext) => {
-  const current: DataSnapshot = change.after;
-  const rows = [];
+// export const pricesUpdated = async (change: Change<DataSnapshot>, context: EventContext) => {
+//   const current: DataSnapshot = change.after;
+//   const rows = [];
 
-  current.forEach(child => {
-    rows.push({
-      market: context.params.marketId,
-      type_id: child.key,
-      ...child.val(),
-    });
-  });
+//   current.forEach(child => {
+//     rows.push({
+//       market: context.params.marketId,
+//       type_id: child.key,
+//       ...child.val(),
+//     });
+//   });
 
-  const table = await getTable('market', 'price_history');
-  await table.insert(rows)
-    .catch(err => console.error(JSON.stringify(err)));
-};
+//   const table = await getTable('market', 'price_history');
+//   await table.insert(rows)
+//     .catch(err => console.error(JSON.stringify(err)));
+// };

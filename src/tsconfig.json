@@ -11,6 +11,7 @@
     "preserveConstEnums": true,
     "strictNullChecks": false,
     "resolveJsonModule": true,
+    "skipLibCheck": true,
     "allowJs": true
   }
 }

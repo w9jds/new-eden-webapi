@@ -6,7 +6,9 @@ import { Character } from 'node-esi-stackdriver';
 import { refresh, verify } from '../lib/Auth';
 
 
-const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Reference, resp, result: Response): Promise<any> => {
+const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Reference, resp, req: https.Request, result: Response): Promise<any> => {
+  const { 'x-cloudtasks-taskretrycount': retryCount } = req.headers;
+
   let content;
   const payload = {
     error: true,
@@ -24,6 +26,12 @@ const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Ref
   }
 
   if (content && content.error && (content.error === 'invalid_grant' || content.error === 'invalid_token')) {
+    if (+retryCount < 3) {
+      console.log(`RETRY TOKEN REFRESH FOR ${user.key} - RETRY: ${retryCount}`);
+      result.status(resp.status).send(`${user.key}: ${content.error} - Retrying Refresh Token`);
+      return;
+    }
+
     const scopes = user.child('sso/scope').val();
 
     await Promise.all([
@@ -36,8 +44,7 @@ const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Ref
       global.firebase.ref(`users/${user.child('accountId').val()}/errors`).set(true),
     ]);
 
-    console.log(`${user.key}: ${content.error} - User Token Removed`);
-    result.status(200).send(`User token removed for ${user.key}`);
+    result.status(resp.status).send(`${user.key}: ${content.error} - User Token Removed`);
     return;
   }
 
@@ -46,11 +53,6 @@ const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Ref
 };
 
 export const onRefreshToken = async (req: https.Request, resp: Response<any>) => {
-  console.info(JSON.stringify({
-    headers: req.headers,
-    body: req.body,
-  }));
-
   const request = req.body;
   const taskRef = global.firebase.ref(`tasks/${request.characterId}/tokens`);
   const snapshot = await global.firebase.ref(`characters/${request.characterId}`).once('value');
@@ -88,7 +90,7 @@ export const onRefreshToken = async (req: https.Request, resp: Response<any>) =>
       return;
     }
 
-    await onRefreshError(snapshot, taskRef, response, resp);
+    await onRefreshError(snapshot, taskRef, response, req, resp);
   } catch (error) {
     console.error(JSON.stringify(error));
     resp.status(500).send(error);

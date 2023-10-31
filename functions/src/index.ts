@@ -11,7 +11,7 @@ import AccessLists from './modules/accesslists';
 
 import { updateSystemStatistics, updateTheraConnections } from './modules/universe';
 import { onRolesChanged, createRefreshTask } from './modules/auth';
-import { signatureUpdated, signatureCreated, signatureDeleted, pricesUpdated } from './modules/analytics';
+import { signatureUpdated, signatureCreated, signatureDeleted } from './modules/analytics';
 import { onRefreshToken } from './modules/taskHandlers';
 import { onNewKillAdded } from './modules/killMails';
 
@@ -102,6 +102,6 @@ export const onSignatureUpdated = database.ref('signatures/{ownerId}/{systemId}/
 export const onSignatureDeleted = database.ref('signatures/{ownerId}/{systemId}/{sigId}')
   .onDelete(signatureDeleted);
 
-export const onRegionPricesUpdated = database.ref('market/prices/{marketId}')
-  .onUpdate(pricesUpdated);
+// export const onRegionPricesUpdated = database.ref('market/prices/{marketId}')
+//   .onUpdate(pricesUpdated);
 
