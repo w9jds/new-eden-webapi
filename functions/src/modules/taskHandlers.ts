@@ -46,12 +46,18 @@ const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Ref
 };
 
 export const onRefreshToken = async (req: https.Request, resp: Response<any>) => {
+  console.info(JSON.stringify({
+    headers: req.headers,
+    body: req.body,
+  }));
+
   const request = req.body;
   const taskRef = global.firebase.ref(`tasks/${request.characterId}/tokens`);
   const snapshot = await global.firebase.ref(`characters/${request.characterId}`).once('value');
   const character: Character = snapshot.val();
 
   if (!character.sso) {
+    await taskRef.remove();
     resp.status(200).send(`User ${request.characterId} has no tokens to refresh`);
     return;
   }

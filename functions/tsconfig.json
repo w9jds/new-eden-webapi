@@ -6,6 +6,7 @@
     "noImplicitReturns": true,
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
+    "skipLibCheck": true,
     "removeComments": true,
     "outDir": "lib",
     "sourceMap": true,
@@ -14,6 +15,10 @@
   "compileOnSave": true,
   "include": [
     "src"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.spec.ts"
   ],
   "paths": {
     "@models/*": ["../models/*"]
