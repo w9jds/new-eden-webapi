@@ -15,27 +15,27 @@
     "@google-cloud/tasks": "^4.0.1",
     "bluebird": "^3.7.2",
     "date-fns": "^2.30.0",
-    "firebase-admin": "~11.11.0",
-    "firebase-functions": "^4.4.1",
+    "firebase-admin": "~11.11.1",
+    "firebase-functions": "^4.5.0",
     "jsonwebtoken": "^9.0.2",
     "node-esi-stackdriver": "^1.0.38",
     "node-fetch": "^2.7.0",
     "tslib": "^2.6.2"
   },
   "devDependencies": {
-    "@types/bluebird": "^3.5.41",
-    "@types/node": "^20.8.9",
-    "@types/node-fetch": "^2.6.8",
-    "@typescript-eslint/eslint-plugin": "^6.9.1",
-    "@typescript-eslint/parser": "^6.9.1",
-    "eslint": "^8.52.0",
+    "@types/bluebird": "^3.5.42",
+    "@types/node": "^20.10.4",
+    "@types/node-fetch": "^2.6.9",
+    "@typescript-eslint/eslint-plugin": "^6.13.2",
+    "@typescript-eslint/parser": "^6.13.2",
+    "eslint": "^8.55.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-import": "^2.29.0",
     "firebase-functions-test": "^3.1.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "engines": {
-    "node": "16"
+    "node": "18"
   },
   "private": true
 }

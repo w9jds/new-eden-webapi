@@ -1,8 +1,8 @@
 import { KillMail } from '../../../models/KillMails';
-import { database, Change, EventContext } from 'firebase-functions';
+import { database, Change } from 'firebase-functions';
 import { compareAsc } from 'date-fns';
 
-export const onNewKillAdded = async (change: Change<database.DataSnapshot>, context?: EventContext) => {
+export const onNewKillAdded = async (change: Change<database.DataSnapshot>) => {
   if (change.after.numChildren() > 6) {
     const kills: Record<number, KillMail> = change.after.val();
     const old = [];
@@ -17,8 +17,6 @@ export const onNewKillAdded = async (change: Change<database.DataSnapshot>, cont
     for (const id of latest.slice(0, -6)) {
       old.push(`${id}`);
     }
-
-    console.log(`Removing ${JSON.stringify(old)} from ${context.params.systemId}`);
 
     Promise.all(old.map(
       id => change.after.child(id).ref.remove()

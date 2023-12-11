@@ -1,15 +1,19 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { auth } from 'firebase-admin';
-import { EventContext, Change } from 'firebase-functions';
+import { EventContext, Change, database } from 'firebase-functions';
 import { CloudTasksClient } from '@google-cloud/tasks';
 
-import { DataSnapshot } from 'firebase-functions/lib/common/providers/database';
 import { ProjectId, TaskConfigs } from '../config/constants';
 import { Permissions } from 'node-esi-stackdriver';
 import { isAfter } from 'date-fns';
 
-export const onRolesChanged = async (change: Change<DataSnapshot>, context?: EventContext) => {
+export const onRolesChanged = async (change: Change<database.DataSnapshot>, context?: EventContext) => {
   const newRoles = change.after.val() as string[];
+  const user = await auth().getUser(context.params.userId);
+
+  if (!user) {
+    console.log(`Auth user record not found for ${context.params.userId}`);
+  }
 
   if (newRoles && newRoles.indexOf('Director')) {
     await auth().setCustomUserClaims(context.params.userId, {
@@ -28,7 +32,7 @@ export const onRolesChanged = async (change: Change<DataSnapshot>, context?: Eve
   }
 };
 
-export const createRefreshTask = async (change: Change<DataSnapshot>, context: EventContext) => {
+export const createRefreshTask = async (change: Change<database.DataSnapshot>, context: EventContext) => {
   const taskRef = global.firebase.ref(`tasks/${context.params.characterId}/tokens`);
   const sso: Permissions = change.after.val();
 

@@ -1,4 +1,4 @@
-import { TheraConnection } from './../../../models/EveScout';
+import { ScoutSignature } from './../../../models/EveScout';
 import fetch from 'node-fetch';
 
 export const updateSystemStatistics = async () => {
@@ -35,32 +35,38 @@ export const updateSystemStatistics = async () => {
 };
 
 export const updateTheraConnections = async () => {
-  const response = await fetch('http://www.eve-scout.com/api/wormholes');
+  const response = await fetch('https://api.eve-scout.com/v2/public/signatures');
 
   if (response.status === 200) {
-    const payload: TheraConnection[] = await response.json();
-    const updates = payload.reduce((current, connection) => {
-      current[connection.destinationSolarSystem.id] = {
-        name: connection.destinationSolarSystem.name,
-        wormholeName: connection.destinationWormholeType.name,
-        sigId: connection.wormholeDestinationSignatureId,
-        estimatedEol: Date.parse(connection.wormholeEstimatedEol),
-        eol: connection.wormholeEol === 'stable',
-        type: connection.wormholeMass,
-        source: {
-          wormholeName: connection.sourceWormholeType.name,
-          sigId: connection.signatureId,
-        },
-        created: {
-          id: connection.createdById,
-          name: connection.createdBy,
-          time: Date.parse(connection.createdAt),
-        },
-      };
+    const payload: ScoutSignature[] = await response.json();
+    const signatures: Record<string, Record<number, object>> = payload
+      .reduce((current, connection) => {
+        current[connection.out_system_name][connection.in_system_id] = {
+          name: connection.in_system_name,
+          wormholeName: connection.wh_exits_outward ? 'K162' : connection.wh_type,
+          sigId: connection.in_signature,
+          estimatedEol: Date.parse(connection.expires_at),
+          eol: connection.remaining_hours <= 4,
+          shipSize: connection.max_ship_size,
+          source: {
+            wormholeName: connection.wh_exits_outward ? connection.wh_type : 'K162',
+            sigId: connection.out_signature,
+          },
+          created: {
+            id: connection.created_by_id,
+            name: connection.created_by_name,
+            time: Date.parse(connection.created_at),
+          },
+        };
 
-      return current;
-    }, {});
+        return current;
+      }, { Thera: {}, Turnur: {} });
 
-    return global.firebase.ref('universe/thera').set(updates);
+    return Promise.all([
+      global.firebase.ref('universe/thera').set(signatures.Thera),
+      global.firebase.ref('universe/turnur').set(signatures.Turnur),
+    ]);
   }
+
+  return null;
 };

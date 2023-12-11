@@ -50,6 +50,9 @@ export const onCorpUpdate = database.ref('characters/{userId}/corpId')
 export const onCharacterCreate = database.ref('characters/{characterId}')
   .onCreate(character.onNewCharacter);
 
+export const onCharacterDelete = database.ref('characters/{characterId}')
+  .onDelete(character.onCharacterDeleted);
+
 export const onCharacterLogin = database.ref('characters/{characterId}/sso')
   .onCreate(character.onCharacterLogin);
 

@@ -252,7 +252,7 @@ export default class Authentication {
       const verification = verify(tokens.access_token);
       const character: database.DataSnapshot = await this.getCharacter(verification.characterId);
 
-      if (!character.exists()) {
+      if (!character.exists() || !character.child('accountId').exists()) {
         switch (state.type) {
           case RequestType.REGISTER:
             let token = await this.createNewProfile(state, tokens, verification);
@@ -427,7 +427,7 @@ export default class Authentication {
   private getCorpConfig = (corpId: number | string): Promise<database.DataSnapshot> =>
     this.firebase.ref(`corporations/configs/${corpId}`).once('value');
 
-  private createUser = (verification: Verification): Promise<auth.UserRecord> => {
+  private createUser = async (verification: Verification): Promise<auth.UserRecord> => {
     let user = {
       uid: verification.characterId.toString(),
       displayName: verification.name,

@@ -5,7 +5,6 @@ import { addSeconds } from 'date-fns';
 import { Character } from 'node-esi-stackdriver';
 import { refresh, verify } from '../lib/Auth';
 
-
 const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Reference, resp, req: https.Request, result: Response): Promise<any> => {
   const { 'x-cloudtasks-taskretrycount': retryCount } = req.headers;
 
@@ -27,7 +26,7 @@ const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Ref
 
   if (content && content.error && (content.error === 'invalid_grant' || content.error === 'invalid_token')) {
     if (+retryCount < 3) {
-      console.log(`RETRY TOKEN REFRESH FOR ${user.key} - RETRY: ${retryCount}`);
+      console.info(`RETRY TOKEN REFRESH FOR ${user.key} - RETRY: ${retryCount}`);
       result.status(resp.status).send(`${user.key}: ${content.error} - Retrying Refresh Token`);
       return;
     }
@@ -40,10 +39,11 @@ const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Ref
       user.child('sso').ref.remove(),
       user.child('roles').ref.remove(),
       user.child('titles').ref.remove(),
-      global.firebase.ref(`locations/${user.key}`).ref.remove(),
       global.firebase.ref(`users/${user.child('accountId').val()}/errors`).set(true),
+      global.firebase.ref(`locations/${user.key}`).ref.remove(),
     ]);
 
+    console.error(`${user.key}: ${JSON.stringify(content)}`);
     result.status(resp.status).send(`${user.key}: ${content.error} - User Token Removed`);
     return;
   }
@@ -55,10 +55,21 @@ const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Ref
 export const onRefreshToken = async (req: https.Request, resp: Response<any>) => {
   const request = req.body;
   const taskRef = global.firebase.ref(`tasks/${request.characterId}/tokens`);
-  const snapshot = await global.firebase.ref(`characters/${request.characterId}`).once('value');
-  const character: Character = snapshot.val();
+  const snapshot: database.DataSnapshot = await global.firebase.ref(`characters/${request.characterId}`).once('value');
 
-  if (!character.sso) {
+  if (!snapshot.exists()) {
+    resp.status(200).send(`User ${request.characterId} is no longer in the system`);
+    return;
+  }
+
+  const character: Character = snapshot.val();
+  if (!character?.accountId) {
+    resp.status(200).send(`User ${request.characterId} doesn't belong to an account`);
+    snapshot.ref.remove();
+    return;
+  }
+
+  if (!character?.sso) {
     await taskRef.remove();
     resp.status(200).send(`User ${request.characterId} has no tokens to refresh`);
     return;
