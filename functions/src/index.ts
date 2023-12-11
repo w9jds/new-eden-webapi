@@ -65,8 +65,10 @@ export const onKillAdded = database.ref('kills/{systemId}')
 /**
  * Cloud Task Managers
  */
-export const onCharacterTokens = runWith({ memory: '512MB' })
-  .database.ref('characters/{characterId}/sso')
+export const onCharacterTokens = runWith({
+  timeoutSeconds: 540,
+  memory: '512MB',
+}).database.ref('characters/{characterId}/sso')
   .onWrite(createRefreshTask);
 
 /**

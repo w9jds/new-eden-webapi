@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { database } from 'firebase-admin';
 import { https, Response } from 'firebase-functions';
+import { info, warn, error } from 'firebase-functions/logger';
 import { addSeconds } from 'date-fns';
 import { Character } from 'node-esi-stackdriver';
 import { refresh, verify } from '../lib/Auth';
@@ -11,9 +12,11 @@ const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Ref
   let content;
   const payload = {
     error: true,
+    request: req.body,
     user: {
       id: user.key,
       name: user.child('name').val(),
+      refreshToken: user.child('sso/refreshToken').val(),
     },
   };
 
@@ -26,7 +29,7 @@ const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Ref
 
   if (content && content.error && (content.error === 'invalid_grant' || content.error === 'invalid_token')) {
     if (+retryCount < 3) {
-      console.info(`RETRY TOKEN REFRESH FOR ${user.key} - RETRY: ${retryCount}`);
+      info(`RETRY TOKEN REFRESH FOR ${user.key} - RETRY: ${retryCount}`);
       result.status(resp.status).send(`${user.key}: ${content.error} - Retrying Refresh Token`);
       return;
     }
@@ -43,13 +46,13 @@ const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Ref
       global.firebase.ref(`locations/${user.key}`).ref.remove(),
     ]);
 
-    console.error(`${user.key}: ${JSON.stringify(content)}`);
+    warn(payload);
     result.status(resp.status).send(`${user.key}: ${content.error} - User Token Removed`);
     return;
   }
 
-  console.error(JSON.stringify(payload));
-  result.status(500).send(JSON.stringify(payload));
+  warn(payload);
+  result.status(500).send(payload);
 };
 
 export const onRefreshToken = async (req: https.Request, resp: Response<any>) => {
@@ -102,8 +105,8 @@ export const onRefreshToken = async (req: https.Request, resp: Response<any>) =>
     }
 
     await onRefreshError(snapshot, taskRef, response, req, resp);
-  } catch (error) {
-    console.error(JSON.stringify(error));
-    resp.status(500).send(error);
+  } catch (err) {
+    error(`Error refreshing ${character.id} token`, err);
+    resp.status(500).send(err);
   }
 };

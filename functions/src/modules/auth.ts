@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { auth } from 'firebase-admin';
 import { EventContext, Change, database } from 'firebase-functions';
+import { error, warn } from 'firebase-functions/logger';
 import { CloudTasksClient } from '@google-cloud/tasks';
 
 import { ProjectId, TaskConfigs } from '../config/constants';
@@ -12,7 +13,7 @@ export const onRolesChanged = async (change: Change<database.DataSnapshot>, cont
   const user = await auth().getUser(context.params.userId);
 
   if (!user) {
-    console.log(`Auth user record not found for ${context.params.userId}`);
+    error(`Auth user record not found for ${context.params.userId}`);
   }
 
   if (newRoles && newRoles.indexOf('Director')) {
@@ -52,12 +53,11 @@ export const createRefreshTask = async (change: Change<database.DataSnapshot>, c
       });
 
       if (current) {
-        console.log(`Task ${current.name} already exists. Created at ${current.createTime}`);
+        warn(`Task ${current.name} already exists. Created at ${JSON.stringify(current.createTime)}`);
         return Promise.resolve('Task already scheduled for this user.');
       }
     } catch (err) {
-      console.log(err);
-      console.log(`Task ${scheduled.child('name').val()} doesn't exist, clearing out cached name and creating new one`);
+      error(`Task ${scheduled.child('name').val()} doesn't exist, clearing out cached name and creating new one`, err);
       await global.firebase.ref(`tasks/${context.params.characterId}`).remove();
     }
   }

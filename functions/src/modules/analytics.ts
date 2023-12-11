@@ -1,5 +1,6 @@
 import { BigQuery } from '@google-cloud/bigquery';
 import { Change, EventContext } from 'firebase-functions';
+import { error } from 'firebase-functions/logger';
 
 import { Character } from 'node-esi-stackdriver';
 import { Signature } from '../../../models/Signature';
@@ -9,7 +10,8 @@ const getTable = async (dataset: string, tableName: string) => {
   const bigQuery = new BigQuery();
   const table = bigQuery.dataset(dataset).table(tableName);
 
-  await table.exists().catch(err => console.error(JSON.stringify(err)));
+  await table.exists()
+    .catch(err => error(err));
 
   return table;
 };
@@ -46,7 +48,7 @@ export const signatureCreated = async (snapshot: DataSnapshot, context: EventCon
     };
 
     await table.insert([row])
-      .catch(err => console.error(JSON.stringify(err)));
+      .catch(err => error(err));
   }
 };
 
@@ -82,7 +84,7 @@ export const signatureUpdated = async (change: Change<DataSnapshot>, context: Ev
     };
 
     await table.insert([row])
-      .catch(err => console.error(JSON.stringify(err)));
+      .catch(err => error(err));
   }
 };
 
@@ -118,7 +120,7 @@ export const signatureDeleted = async (snapshot: DataSnapshot, context: EventCon
     };
 
     await table.insert([row])
-      .catch(err => console.error(JSON.stringify(err)));
+      .catch(err => error(err));
   }
 };
 
@@ -136,5 +138,5 @@ export const signatureDeleted = async (snapshot: DataSnapshot, context: EventCon
 
 //   const table = await getTable('market', 'price_history');
 //   await table.insert(rows)
-//     .catch(err => console.error(JSON.stringify(err)));
+//     .catch(err => error(err));
 // };

@@ -2,6 +2,7 @@
 import { database } from 'firebase-admin';
 import { map } from 'bluebird';
 import { Change, EventContext } from 'firebase-functions';
+import { error, warn, info } from 'firebase-functions/logger';
 import { Character, ErrorResponse } from 'node-esi-stackdriver';
 import { isBefore } from 'date-fns';
 
@@ -115,8 +116,8 @@ export default class DiscordHandlers {
     }
 
     await global.firebase.ref(`discord/${account.id}`).update(response)
-      .catch(error => {
-        console.error('Error storing updated credentials: ', error);
+      .catch(err => {
+        error('Error storing updated credentials', err);
         return false;
       });
 
@@ -134,7 +135,7 @@ export default class DiscordHandlers {
         return this.updateRoles(character, account);
       }
 
-      console.info(`${character.name} is not the main character for their account.`);
+      info(`${character.name} is not the main character for their account.`);
     }
   };
 
@@ -144,7 +145,7 @@ export default class DiscordHandlers {
     if (account && guilds) {
       const patches = [];
 
-      console.info(`Updating roles for ${character.name}`);
+      info(`Updating roles for ${character.name}`);
 
       for (const guild of guilds) {
         const user: GuildMember | ErrorResponse = await this.api.getGuildMember(guild.id, account.id);
@@ -162,7 +163,7 @@ export default class DiscordHandlers {
                 })
               );
 
-              console.info(`Updating ${character.name} to roles of ${updatedRoles.join(', ')}`);
+              info(`Updating ${character.name} to roles of ${updatedRoles.join(', ')}`);
               return await map(patches, item => item, { concurrency: 300 });
             }
           }
@@ -204,7 +205,7 @@ export default class DiscordHandlers {
           });
         }
 
-        console.warn('Could not get list of roles from specified Guild');
+        warn('Could not get list of roles from specified Guild');
         return;
       } else {
         return Promise.all([
@@ -215,15 +216,15 @@ export default class DiscordHandlers {
     }
 
     if (!account) {
-      console.warn('Could not find the associated account!');
+      warn('Could not find the associated account!');
     }
 
     if (!character) {
-      console.warn('Could not find the associated character!');
+      warn('Could not find the associated character!');
     }
 
     if (!guild) {
-      console.warn(`No corp discord guild was found for ${character.name} so he wasn't added to any guilds.`);
+      warn(`No corp discord guild was found for ${character.name} so he wasn't added to any guilds.`);
     }
   };
 
@@ -236,20 +237,20 @@ export default class DiscordHandlers {
 
       if (account && profile.mainId === character.id) {
         if (isBefore(new Date(), new Date(account.expiresAt))) {
-          console.info(`Refreshing token for ${account.username}#${account.discriminator}...`);
+          info(`Refreshing token for ${account.username}#${account.discriminator}...`);
 
           if (await this.refreshTokens(account) === false) {
-            console.warn(`Token refresh for ${account.username}#${account.discriminator} failed, and has been removed.`);
+            warn(`Token refresh for ${account.username}#${account.discriminator} failed, and has been removed.`);
             return;
           }
         } else {
-          console.info('Refresh token still valid, running manageAccount.');
+          info('Refresh token still valid, running manageAccount.');
         }
 
         return await this.manageAccount(await this.getDiscordAccount(character.accountId));
       }
 
-      console.info(account ?
+      info(account ?
         `${character.name} is not the main of this profile.` :
         `Couldn't find discord for ${character.name} with ${profile.id}`
       );
@@ -262,9 +263,9 @@ export default class DiscordHandlers {
   // Update Discord roles for ALL registered guilds this member belongs to,
   // and add the user to any guild they may now belong to with the update affiliations
   public onCorpUpdate = async (_change: Change<database.DataSnapshot>, context?: EventContext): Promise<void> => {
-    console.info('Searching for new associated servers that are available.');
+    info('Searching for new associated servers that are available.');
     await this.updateAssociations(+context.params.userId);
-    console.info('Updating roles on all registered Discord servers.');
+    info('Updating roles on all registered Discord servers.');
     await this.updateRolesFromId(+context.params.userId);
   };
 

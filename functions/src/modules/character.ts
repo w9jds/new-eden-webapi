@@ -19,7 +19,7 @@ export default class CharacterHandlers {
   };
 
   public onCharacterLogin = (snapshot: database.DataSnapshot, context?: EventContext) => {
-    this.populateCharacterInfo(context.params.characterId, snapshot.child('accessToken').val(), snapshot.ref.parent);
+    return this.populateCharacterInfo(context.params.characterId, snapshot.child('accessToken').val(), snapshot.ref.parent);
   };
 
   public onCharacterDeleted = (snapshot: database.DataSnapshot, context?: EventContext) => {
