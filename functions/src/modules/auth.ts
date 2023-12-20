@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { auth } from 'firebase-admin';
 import { EventContext, Change, database } from 'firebase-functions';
-import { error, warn } from 'firebase-functions/logger';
+import { error } from 'firebase-functions/logger';
 import { CloudTasksClient } from '@google-cloud/tasks';
 
 import { ProjectId, TaskConfigs } from '../config/constants';
@@ -34,18 +34,30 @@ export const onRolesChanged = async (change: Change<database.DataSnapshot>, cont
 };
 
 export const createRefreshTask = async (change: Change<database.DataSnapshot>, context: EventContext) => {
+  const queueName = 'refresh-token-queue';
   const taskRef = global.firebase.ref(`tasks/${context.params.characterId}/tokens`);
   const sso: Permissions = change.after.val();
+
+  if (context.eventType.endsWith('delete')) {
+    const scheduled = await taskRef.once('value');
+    if (scheduled && scheduled.exists()) {
+      const client = new CloudTasksClient();
+      await client.deleteTask({
+        name: client.taskPath(ProjectId, TaskConfigs.Location, queueName, scheduled.child('name').val()),
+      });
+    }
+
+    return Promise.resolve('User deleted, no need to register a task.');
+  }
 
   if (!sso || !sso.refreshToken) {
     return Promise.resolve('User has no SSO validated.');
   }
 
   const expiresAt = new Date(sso.expiresAt);
-  const scheduled = await taskRef.once('value');
   const client = new CloudTasksClient();
-  const queueName = 'refresh-token-queue';
 
+  const scheduled = await taskRef.once('value');
   if (scheduled && scheduled.exists()) {
     try {
       const [current] = await client.getTask({
@@ -53,7 +65,6 @@ export const createRefreshTask = async (change: Change<database.DataSnapshot>, c
       });
 
       if (current) {
-        warn(`Task ${current.name} already exists. Created at ${JSON.stringify(current.createTime)}`);
         return Promise.resolve('Task already scheduled for this user.');
       }
     } catch (err) {

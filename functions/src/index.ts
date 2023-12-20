@@ -1,5 +1,7 @@
 import admin from 'firebase-admin';
-import { runWith, database, pubsub, https } from 'firebase-functions';
+import { runWith, database, https } from 'firebase-functions';
+import { onTaskDispatched } from 'firebase-functions/v2/tasks';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 
 import { Esi } from 'node-esi-stackdriver';
 
@@ -9,9 +11,10 @@ import CharacterHandlers from './modules/character';
 import LocationHandlers from './modules/locations';
 import AccessLists from './modules/accesslists';
 
-import { updateSystemStatistics, updateTheraConnections } from './modules/universe';
-import { onRolesChanged, createRefreshTask } from './modules/auth';
 import { signatureUpdated, signatureCreated, signatureDeleted } from './modules/analytics';
+import { updateSystemStatistics, updateHubConnections } from './modules/universe';
+import { onRolesChanged, createRefreshTask } from './modules/auth';
+import { updateWarfareSystems } from './modules/factionWarfare';
 import { onRefreshToken } from './modules/taskHandlers';
 import { onNewKillAdded } from './modules/killMails';
 
@@ -32,11 +35,11 @@ const locations = new LocationHandlers();
 //   .onRun(context => {
 // });
 
-export const statistics = pubsub.schedule('0 * * * *')
-  .onRun(updateSystemStatistics);
+export const statistics = onSchedule('0 * * * *', updateSystemStatistics);
 
-export const thera = pubsub.schedule('*/5 * * * *')
-  .onRun(updateTheraConnections);
+export const thera = onSchedule('*/5 * * * *', updateHubConnections);
+
+// export const fwSystems = onSchedule('*/30 * * * *', updateWarfareSystems);
 
 /**
  * Database Data Updates
@@ -65,10 +68,8 @@ export const onKillAdded = database.ref('kills/{systemId}')
 /**
  * Cloud Task Managers
  */
-export const onCharacterTokens = runWith({
-  timeoutSeconds: 540,
-  memory: '512MB',
-}).database.ref('characters/{characterId}/sso')
+export const onCharacterTokens = runWith({ timeoutSeconds: 540, memory: '1GB' })
+  .database.ref('characters/{characterId}/sso')
   .onWrite(createRefreshTask);
 
 /**
@@ -76,6 +77,11 @@ export const onCharacterTokens = runWith({
  */
 export const refreshUserToken = https.onRequest(onRefreshToken);
 
+// export const refreshUserTokenv2 = onTaskDispatched({
+//   retryConfig: {
+//     maxAttempts: 3,
+//   },
+// }, onRefreshToken);
 
 /**
  * Access Lists

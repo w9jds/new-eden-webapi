@@ -29,12 +29,12 @@ export const updateSystemStatistics = async () => {
     }
   }
 
-  return Promise.all(Object.keys(updates).map(
+  Promise.all(Object.keys(updates).map(
     id => global.firebase.ref(`universe/systems/k_space/${id}`).update(updates[id])
   ));
 };
 
-export const updateTheraConnections = async () => {
+export const updateHubConnections = async () => {
   const response = await fetch('https://api.eve-scout.com/v2/public/signatures');
 
   if (response.status === 200) {
@@ -62,11 +62,9 @@ export const updateTheraConnections = async () => {
         return current;
       }, { Thera: {}, Turnur: {} });
 
-    return Promise.all([
+    Promise.all([
       global.firebase.ref('universe/thera').set(signatures.Thera),
       global.firebase.ref('universe/turnur').set(signatures.Turnur),
     ]);
   }
-
-  return null;
 };
