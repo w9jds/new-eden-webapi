@@ -61,18 +61,21 @@ export const onRefreshToken = async (req: https.Request, resp: Response<any>) =>
   const snapshot: database.DataSnapshot = await global.firebase.ref(`characters/${request.characterId}`).once('value');
 
   if (!snapshot.exists()) {
+    warn(`User ${request.characterId} is no longer in the system`);
     resp.status(200).send(`User ${request.characterId} is no longer in the system`);
     return;
   }
 
   const character: Character = snapshot.val();
   if (!character?.accountId) {
+    warn(`User ${request.characterId} doesn't belong to an account`);
     resp.status(200).send(`User ${request.characterId} doesn't belong to an account`);
     snapshot.ref.remove();
     return;
   }
 
   if (!character?.sso) {
+    warn(`User ${request.characterId} has no tokens to refresh`);
     await taskRef.remove();
     resp.status(200).send(`User ${request.characterId} has no tokens to refresh`);
     return;

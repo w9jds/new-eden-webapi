@@ -1,6 +1,5 @@
 import admin from 'firebase-admin';
 import { runWith, database, https } from 'firebase-functions';
-import { onTaskDispatched } from 'firebase-functions/v2/tasks';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
 
 import { Esi } from 'node-esi-stackdriver';
@@ -14,7 +13,6 @@ import AccessLists from './modules/accesslists';
 import { signatureUpdated, signatureCreated, signatureDeleted } from './modules/analytics';
 import { updateSystemStatistics, updateHubConnections } from './modules/universe';
 import { onRolesChanged, createRefreshTask } from './modules/auth';
-import { updateWarfareSystems } from './modules/factionWarfare';
 import { onRefreshToken } from './modules/taskHandlers';
 import { onNewKillAdded } from './modules/killMails';
 
@@ -35,9 +33,9 @@ const locations = new LocationHandlers();
 //   .onRun(context => {
 // });
 
-export const statistics = onSchedule('0 * * * *', updateSystemStatistics);
+export const runSystemStats = onSchedule('0 * * * *', updateSystemStatistics);
 
-export const thera = onSchedule('*/5 * * * *', updateHubConnections);
+export const runEveScoutHubs = onSchedule('*/5 * * * *', updateHubConnections);
 
 // export const fwSystems = onSchedule('*/30 * * * *', updateWarfareSystems);
 
@@ -68,7 +66,7 @@ export const onKillAdded = database.ref('kills/{systemId}')
 /**
  * Cloud Task Managers
  */
-export const onCharacterTokens = runWith({ timeoutSeconds: 540, memory: '1GB' })
+export const onCharacterTokens = runWith({ timeoutSeconds: 120, memory: '1GB', failurePolicy: true })
   .database.ref('characters/{characterId}/sso')
   .onWrite(createRefreshTask);
 
@@ -112,7 +110,4 @@ export const onSignatureUpdated = database.ref('signatures/{ownerId}/{systemId}/
 
 export const onSignatureDeleted = database.ref('signatures/{ownerId}/{systemId}/{sigId}')
   .onDelete(signatureDeleted);
-
-// export const onRegionPricesUpdated = database.ref('market/prices/{marketId}')
-//   .onUpdate(pricesUpdated);
 
