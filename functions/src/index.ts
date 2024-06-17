@@ -1,5 +1,7 @@
 import admin from 'firebase-admin';
-import { runWith, database, pubsub, https } from 'firebase-functions';
+import { runWith, database, https } from 'firebase-functions';
+import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { onValueCreated } from 'firebase-functions/v2/database';
 
 import { Esi } from 'node-esi-stackdriver';
 
@@ -9,11 +11,14 @@ import CharacterHandlers from './modules/character';
 import LocationHandlers from './modules/locations';
 import AccessLists from './modules/accesslists';
 
-import { updateSystemStatistics, updateTheraConnections } from './modules/universe';
-import { onRolesChanged, createRefreshTask } from './modules/auth';
 import { signatureUpdated, signatureCreated, signatureDeleted } from './modules/analytics';
+import { updateSystemStatistics, updateHubConnections, onNewStatisticAdded } from './modules/universe';
+import { onRolesChanged, createRefreshTask } from './modules/auth';
+import { updateWarfareSystems } from './modules/factionWarfare';
 import { onRefreshToken } from './modules/taskHandlers';
 import { onNewKillAdded } from './modules/killMails';
+import { updateSovSystems } from './modules/sovereignty';
+import { notifySystemAdded } from './modules/discord';
 
 global.app = admin.initializeApp();
 global.firebase = global.app.database();
@@ -32,11 +37,13 @@ const locations = new LocationHandlers();
 //   .onRun(context => {
 // });
 
-export const statistics = pubsub.schedule('0 * * * *')
-  .onRun(updateSystemStatistics);
+export const runSystemStats = onSchedule('0 * * * *', updateSystemStatistics);
 
-export const thera = pubsub.schedule('*/5 * * * *')
-  .onRun(updateTheraConnections);
+export const runSovereigntyMap = onSchedule('0 * * * *', updateSovSystems);
+
+export const runFactionWarfareStats = onSchedule('*/30 * * * *', updateWarfareSystems);
+
+export const runEveScoutHubs = onSchedule('*/5 * * * *', updateHubConnections);
 
 /**
  * Database Data Updates
@@ -50,6 +57,9 @@ export const onCorpUpdate = database.ref('characters/{userId}/corpId')
 export const onCharacterCreate = database.ref('characters/{characterId}')
   .onCreate(character.onNewCharacter);
 
+export const onCharacterDelete = database.ref('characters/{characterId}')
+  .onDelete(character.onCharacterDeleted);
+
 export const onCharacterLogin = database.ref('characters/{characterId}/sso')
   .onCreate(character.onCharacterLogin);
 
@@ -59,10 +69,15 @@ export const onRolesWrite = database.ref('characters/{userId}/roles/roles')
 export const onKillAdded = database.ref('kills/{systemId}')
   .onUpdate(onNewKillAdded);
 
+export const onStatisticAdded = database.ref('universe/systems/k_space/{systemId}/statistics')
+  .onUpdate(onNewStatisticAdded);
+
+export const onSystemAdded = onValueCreated('maps/{mapId}/systems/{systemId}', notifySystemAdded);
+
 /**
  * Cloud Task Managers
  */
-export const onCharacterTokens = runWith({ memory: '512MB' })
+export const onCharacterTokens = runWith({ timeoutSeconds: 120, memory: '1GB', failurePolicy: true })
   .database.ref('characters/{characterId}/sso')
   .onWrite(createRefreshTask);
 
@@ -70,7 +85,6 @@ export const onCharacterTokens = runWith({ memory: '512MB' })
  * Cloud Task Handlers
  */
 export const refreshUserToken = https.onRequest(onRefreshToken);
-
 
 /**
  * Access Lists

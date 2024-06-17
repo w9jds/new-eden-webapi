@@ -1,14 +1,21 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { auth } from 'firebase-admin';
-import { EventContext, Change } from 'firebase-functions';
-import { v2beta3 } from '@google-cloud/tasks';
+import { EventContext, Change, database } from 'firebase-functions';
+import { error } from 'firebase-functions/logger';
+import { CloudTasksClient } from '@google-cloud/tasks';
 
-import { DataSnapshot } from 'firebase-functions/lib/common/providers/database';
 import { ProjectId, TaskConfigs } from '../config/constants';
 import { Permissions } from 'node-esi-stackdriver';
 import { isAfter } from 'date-fns';
+import { info, warn } from 'console';
 
-export const onRolesChanged = async (change: Change<DataSnapshot>, context?: EventContext) => {
+export const onRolesChanged = async (change: Change<database.DataSnapshot>, context?: EventContext) => {
   const newRoles = change.after.val() as string[];
+  const user = await auth().getUser(context.params.userId);
+
+  if (!user) {
+    error(`Auth user record not found for ${context.params.userId}`);
+  }
 
   if (newRoles && newRoles.indexOf('Director')) {
     await auth().setCustomUserClaims(context.params.userId, {
@@ -27,18 +34,38 @@ export const onRolesChanged = async (change: Change<DataSnapshot>, context?: Eve
   }
 };
 
-export const createRefreshTask = async (change: Change<DataSnapshot>, context: EventContext) => {
+export const createRefreshTask = async (change: Change<database.DataSnapshot>, context: EventContext) => {
+  const eventAgeMs = Date.now() - Date.parse(context.timestamp);
+  const eventMaxAgeMs = 300000;
+  if (eventAgeMs > eventMaxAgeMs) {
+    error(`Dropping event ${context.eventId} with age[ms]: ${eventAgeMs}`);
+    return;
+  }
+
+  const queueName = 'refresh-token-queue';
   const taskRef = global.firebase.ref(`tasks/${context.params.characterId}/tokens`);
   const sso: Permissions = change.after.val();
 
+  if (context.eventType.endsWith('delete')) {
+    const scheduled = await taskRef.once('value');
+    if (scheduled && scheduled.exists()) {
+      const client = new CloudTasksClient();
+      await client.deleteTask({
+        name: client.taskPath(ProjectId, TaskConfigs.Location, queueName, scheduled.child('name').val()),
+      });
+    }
+
+    return Promise.resolve('User deleted, no need to register a task.');
+  }
+
   if (!sso || !sso.refreshToken) {
+    warn(`User ${context.params.characterId} has no SSO validated.`);
     return Promise.resolve('User has no SSO validated.');
   }
 
   const expiresAt = new Date(sso.expiresAt);
+  const client = new CloudTasksClient();
   const scheduled = await taskRef.once('value');
-  const client = new v2beta3.CloudTasksClient();
-  const queueName = 'refresh-token-queue';
 
   if (scheduled && scheduled.exists()) {
     try {
@@ -47,47 +74,51 @@ export const createRefreshTask = async (change: Change<DataSnapshot>, context: E
       });
 
       if (current) {
-        console.log(`Task ${current.name} already exists. Created at ${current.createTime}`);
+        info(`Task already schedules for ${scheduled.child('name').val()} `);
         return Promise.resolve('Task already scheduled for this user.');
       }
     } catch (err) {
-      console.log(err);
-      console.log(`Task ${scheduled.child('name').val()} doesn't exist, clearing out cached name and creating new one`);
+      warn(`Task ${scheduled.child('name').val()} doesn't exist, clearing out cached name and creating new one`, err);
       await global.firebase.ref(`tasks/${context.params.characterId}`).remove();
     }
   }
 
-  const now = new Date();
-  const parent = client.queuePath(ProjectId, TaskConfigs.Location, queueName);
-  const serialized = JSON.stringify({ characterId: context.params.characterId });
-  const body = Buffer.from(serialized).toString('base64');
+  try {
+    const now = new Date();
+    const parent = client.queuePath(ProjectId, TaskConfigs.Location, queueName);
+    const serialized = JSON.stringify({ characterId: context.params.characterId });
+    const body = Buffer.from(serialized).toString('base64');
 
-  const taskName = `${context.params.characterId}_${context.eventId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    const taskName = `${context.params.characterId}_${context.eventId.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
-  const task: any = {
-    name: client.taskPath(ProjectId, TaskConfigs.Location, queueName, taskName),
-    httpRequest: {
-      httpMethod: 'POST',
-      url: `${TaskConfigs.FunctionUrl}/refreshUserToken`,
-      headers: {
-        'Content-Type': 'application/json',
+    const task: any = {
+      name: client.taskPath(ProjectId, TaskConfigs.Location, queueName, taskName),
+      httpRequest: {
+        httpMethod: 'POST',
+        url: `${TaskConfigs.FunctionUrl}/refreshUserToken`,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body,
+        oidcToken: {
+          serviceAccountEmail: TaskConfigs.ServiceAccountEmail,
+        },
       },
-      body,
-      oidcToken: {
-        serviceAccountEmail: TaskConfigs.ServiceAccountEmail,
-      },
-    },
-  };
-
-  if (!isAfter(now, expiresAt)) {
-    task.scheduleTime = {
-      seconds: expiresAt.getTime() / 1000,
     };
-  }
 
-  await client.createTask({ parent, task });
-  return taskRef.set({
-    name: taskName,
-    scheduleTime: !isAfter(now, expiresAt) ? expiresAt : now,
-  });
+    if (!isAfter(now, expiresAt)) {
+      task.scheduleTime = {
+        seconds: (expiresAt.getTime() / 1000) - 300,
+      };
+    }
+
+    await client.createTask({ parent, task }, { maxRetries: 2 });
+    return taskRef.set({
+      name: taskName,
+      scheduleTime: !isAfter(now, expiresAt) ? (expiresAt.getTime() / 1000) - 300 : now,
+    });
+  } catch (err) {
+    error(`Failed to create task for ${context.params.characterId}`, err);
+    return Promise.reject(err);
+  }
 };

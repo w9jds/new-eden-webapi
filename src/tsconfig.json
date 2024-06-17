@@ -1,4 +1,7 @@
 {
+  "exclude": [
+    "../node_modules"
+  ],
   "compileOnSave": true,
   "compilerOptions": {
     "importHelpers": true,
@@ -11,6 +14,7 @@
     "preserveConstEnums": true,
     "strictNullChecks": false,
     "resolveJsonModule": true,
+    "skipLibCheck": true,
     "allowJs": true
   }
 }

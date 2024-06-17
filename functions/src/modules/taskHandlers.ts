@@ -1,16 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { database } from 'firebase-admin';
 import { https, Response } from 'firebase-functions';
+import { info, warn, error } from 'firebase-functions/logger';
 import { addSeconds } from 'date-fns';
 import { Character } from 'node-esi-stackdriver';
 import { refresh, verify } from '../lib/Auth';
 
-const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Reference, resp, result: Response): Promise<any> => {
+const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Reference, resp, req: https.Request, result: Response): Promise<any> => {
+  const { 'x-cloudtasks-taskretrycount': retryCount } = req.headers;
+
   let content;
   const payload = {
     error: true,
+    request: req.body,
     user: {
       id: user.key,
       name: user.child('name').val(),
+      refreshToken: user.child('sso/refreshToken').val(),
     },
   };
 
@@ -22,6 +28,12 @@ const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Ref
   }
 
   if (content && content.error && (content.error === 'invalid_grant' || content.error === 'invalid_token')) {
+    if (+retryCount < 3) {
+      info(`RETRY TOKEN REFRESH FOR ${user.key} - RETRY: ${retryCount}`);
+      result.status(resp.status).send(`${user.key}: ${content.error} - Retrying Refresh Token`);
+      return;
+    }
+
     const scopes = user.child('sso/scope').val();
 
     await Promise.all([
@@ -30,26 +42,41 @@ const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Ref
       user.child('sso').ref.remove(),
       user.child('roles').ref.remove(),
       user.child('titles').ref.remove(),
-      global.firebase.ref(`locations/${user.key}`).ref.remove(),
       global.firebase.ref(`users/${user.child('accountId').val()}/errors`).set(true),
+      global.firebase.ref(`locations/${user.key}`).ref.remove(),
     ]);
 
-    console.log(`${user.key}: ${content.error} - User Token Removed`);
-    result.status(200).send(`User token removed for ${user.key}`);
+    warn(payload);
+    result.status(resp.status).send(`${user.key}: ${content.error} - User Token Removed`);
     return;
   }
 
-  console.error(JSON.stringify(payload));
-  result.status(500).send(JSON.stringify(payload));
+  warn(payload);
+  result.status(500).send(payload);
 };
 
 export const onRefreshToken = async (req: https.Request, resp: Response<any>) => {
   const request = req.body;
   const taskRef = global.firebase.ref(`tasks/${request.characterId}/tokens`);
-  const snapshot = await global.firebase.ref(`characters/${request.characterId}`).once('value');
-  const character: Character = snapshot.val();
+  const snapshot: database.DataSnapshot = await global.firebase.ref(`characters/${request.characterId}`).once('value');
 
-  if (!character.sso) {
+  if (!snapshot.exists()) {
+    warn(`User ${request.characterId} is no longer in the system`);
+    resp.status(200).send(`User ${request.characterId} is no longer in the system`);
+    return;
+  }
+
+  const character: Character = snapshot.val();
+  if (!character?.accountId) {
+    warn(`User ${request.characterId} doesn't belong to an account`);
+    resp.status(200).send(`User ${request.characterId} doesn't belong to an account`);
+    snapshot.ref.remove();
+    return;
+  }
+
+  if (!character?.sso) {
+    warn(`User ${request.characterId} has no tokens to refresh`);
+    await taskRef.remove();
     resp.status(200).send(`User ${request.characterId} has no tokens to refresh`);
     return;
   }
@@ -80,9 +107,9 @@ export const onRefreshToken = async (req: https.Request, resp: Response<any>) =>
       return;
     }
 
-    await onRefreshError(snapshot, taskRef, response, resp);
-  } catch (error) {
-    console.error(JSON.stringify(error));
-    resp.status(500).send(error);
+    await onRefreshError(snapshot, taskRef, response, req, resp);
+  } catch (err) {
+    error(`Error refreshing ${character.id} token`, err);
+    resp.status(500).send(err);
   }
 };

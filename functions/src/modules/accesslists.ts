@@ -15,7 +15,7 @@ export default class AccessLists {
     });
   }
 
-  public onMapDeleted = async (snapshot: database.DataSnapshot, context?: EventContext) => {
+  public onMapDeleted = async (snapshot: database.DataSnapshot) => {
     const map: Map = snapshot.val();
 
     for (const groupId in map.accessList) {
@@ -23,7 +23,7 @@ export default class AccessLists {
     }
   };
 
-  public onMapCreated = async (snapshot: database.DataSnapshot, context?: EventContext) => {
+  public onMapCreated = async (snapshot: database.DataSnapshot) => {
     const map: Map = snapshot.val();
 
     for (const groupId in map.accessList) {

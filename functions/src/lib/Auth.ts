@@ -1,4 +1,5 @@
-import fetch from 'node-fetch';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import fetch, { Response } from 'node-fetch';
 import { decode } from 'jsonwebtoken';
 import { config } from 'firebase-functions';
 import { UserAgent } from '../config/constants';
@@ -22,7 +23,7 @@ export const verify = (token: string): Verification => {
   };
 };
 
-export const refresh = (refreshToken: string): Promise<any> => {
+export const refresh = (refreshToken: string): Promise<Response> => {
   const eve: EveConfig = config().eve;
 
   return fetch('https://login.eveonline.com/v2/oauth/token', {

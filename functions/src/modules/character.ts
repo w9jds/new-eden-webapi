@@ -18,8 +18,13 @@ export default class CharacterHandlers {
     return this.populateCharacterInfo(context.params.characterId, snapshot.child('sso/accessToken').val(), snapshot.ref);
   };
 
-  public onCharacterLogin = (snapshot: database.DataSnapshot, context?: EventContext) =>
-    this.populateCharacterInfo(context.params.characterId, snapshot.child('accessToken').val(), snapshot.ref.parent);
+  public onCharacterLogin = (snapshot: database.DataSnapshot, context?: EventContext) => {
+    return this.populateCharacterInfo(context.params.characterId, snapshot.child('accessToken').val(), snapshot.ref.parent);
+  };
+
+  public onCharacterDeleted = (snapshot: database.DataSnapshot, context?: EventContext) => {
+    return global.firebase.ref(`locations/${context.params.characterId}`).remove();
+  };
 
   private populateCharacterInfo = async (characterId: string, accessToken: string, ref: db.Reference) => {
     const responses = await Promise.all([
