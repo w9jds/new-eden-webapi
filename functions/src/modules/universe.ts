@@ -1,8 +1,22 @@
-import { ScoutSignature } from './../../../models/EveScout';
+import { database, Change } from 'firebase-functions';
+import { error } from 'firebase-functions/logger';
+import { compareAsc } from 'date-fns';
 import fetch from 'node-fetch';
 
+import { ScoutSignature } from './../../../models/EveScout';
+
+export type SystemStatistics = {
+  processed_at: number;
+  kills: {
+    podKills: number;
+    shipKills: number;
+    npcKills: number;
+  };
+  jumps: number;
+}
+
 export const updateSystemStatistics = async () => {
-  const updates = {};
+  const updates: Record<string, SystemStatistics> = {};
   const stats = await Promise.all([
     global.esi.getSystemKills(),
     global.esi.getSystemJumps(),
@@ -12,26 +26,67 @@ export const updateSystemStatistics = async () => {
     for (const content of statistic) {
       if (!updates[content.system_id]) {
         updates[content.system_id] = {
-          statistics: {},
+          processed_at: new Date().getTime(),
+          kills: {
+            podKills: 0,
+            shipKills: 0,
+            npcKills: 0,
+          },
+          jumps: 0,
         };
       }
 
+      if ('error' in content) {
+        error(content);
+      }
+
       if ('npc_kills' in content) {
-        updates[content.system_id].statistics.kills = {
+        updates[content.system_id].kills = {
           podKills: content.pod_kills || 0,
           shipKills: content.ship_kills || 0,
           npcKills: content.npm_kills || 0,
         };
       }
+
       if ('ship_jumps' in content) {
-        updates[content.system_id].statistics.jumps = content.ship_jumps || 0;
+        updates[content.system_id].jumps = content.ship_jumps || 0;
       }
     }
   }
 
   Promise.all(Object.keys(updates).map(
-    id => global.firebase.ref(`universe/systems/k_space/${id}`).update(updates[id])
+    id => global.firebase.ref(`universe/systems/k_space/${id}/statistics`).push(updates[id])
   ));
+};
+
+export const onNewStatisticAdded = async (change: Change<database.DataSnapshot>) => {
+  if (change.after.hasChild('kills')) {
+    change.after.child('kills').ref.remove();
+  }
+
+  if (change.after.hasChild('jumps')) {
+    change.after.child('jumps').ref.remove();
+  }
+
+  if (change.after.numChildren() > 24) {
+    const statistics: Record<string, SystemStatistics> = change.after.val();
+    const old = [];
+
+    const latest = Object.keys(statistics).sort((a, b) => {
+      const statA = new Date(statistics[a].processed_at);
+      const statB = new Date(statistics[b].processed_at);
+
+      return compareAsc(statA, statB);
+    });
+
+    for (const id of latest.slice(0, -24)) {
+      old.push(`${id}`);
+    }
+
+    Promise.all(old.map(
+      id => change.after.child(id).ref.remove()
+    ));
+  }
 };
 
 export const updateHubConnections = async () => {

@@ -1,20 +1,10 @@
-import { BigQuery } from '@google-cloud/bigquery';
 import { Change, EventContext } from 'firebase-functions';
 import { error } from 'firebase-functions/logger';
 
 import { Character } from 'node-esi-stackdriver';
 import { Signature } from '../../../models/Signature';
 import { DataSnapshot } from 'firebase-functions/lib/common/providers/database';
-
-const getTable = async (dataset: string, tableName: string) => {
-  const bigQuery = new BigQuery();
-  const table = bigQuery.dataset(dataset).table(tableName);
-
-  await table.exists()
-    .catch(err => error(err));
-
-  return table;
-};
+import { getTable } from '../lib/BigQuery';
 
 export const signatureCreated = async (snapshot: DataSnapshot, context: EventContext) => {
   const signature: Signature = snapshot.val();

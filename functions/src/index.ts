@@ -1,6 +1,7 @@
 import admin from 'firebase-admin';
 import { runWith, database, https } from 'firebase-functions';
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { onValueCreated } from 'firebase-functions/v2/database';
 
 import { Esi } from 'node-esi-stackdriver';
 
@@ -11,10 +12,13 @@ import LocationHandlers from './modules/locations';
 import AccessLists from './modules/accesslists';
 
 import { signatureUpdated, signatureCreated, signatureDeleted } from './modules/analytics';
-import { updateSystemStatistics, updateHubConnections } from './modules/universe';
+import { updateSystemStatistics, updateHubConnections, onNewStatisticAdded } from './modules/universe';
 import { onRolesChanged, createRefreshTask } from './modules/auth';
+import { updateWarfareSystems } from './modules/factionWarfare';
 import { onRefreshToken } from './modules/taskHandlers';
 import { onNewKillAdded } from './modules/killMails';
+import { updateSovSystems } from './modules/sovereignty';
+import { notifySystemAdded } from './modules/discord';
 
 global.app = admin.initializeApp();
 global.firebase = global.app.database();
@@ -35,9 +39,11 @@ const locations = new LocationHandlers();
 
 export const runSystemStats = onSchedule('0 * * * *', updateSystemStatistics);
 
-export const runEveScoutHubs = onSchedule('*/5 * * * *', updateHubConnections);
+export const runSovereigntyMap = onSchedule('0 * * * *', updateSovSystems);
 
-// export const fwSystems = onSchedule('*/30 * * * *', updateWarfareSystems);
+export const runFactionWarfareStats = onSchedule('*/30 * * * *', updateWarfareSystems);
+
+export const runEveScoutHubs = onSchedule('*/5 * * * *', updateHubConnections);
 
 /**
  * Database Data Updates
@@ -63,6 +69,11 @@ export const onRolesWrite = database.ref('characters/{userId}/roles/roles')
 export const onKillAdded = database.ref('kills/{systemId}')
   .onUpdate(onNewKillAdded);
 
+export const onStatisticAdded = database.ref('universe/systems/k_space/{systemId}/statistics')
+  .onUpdate(onNewStatisticAdded);
+
+export const onSystemAdded = onValueCreated('maps/{mapId}/systems/{systemId}', notifySystemAdded);
+
 /**
  * Cloud Task Managers
  */
@@ -74,12 +85,6 @@ export const onCharacterTokens = runWith({ timeoutSeconds: 120, memory: '1GB', f
  * Cloud Task Handlers
  */
 export const refreshUserToken = https.onRequest(onRefreshToken);
-
-// export const refreshUserTokenv2 = onTaskDispatched({
-//   retryConfig: {
-//     maxAttempts: 3,
-//   },
-// }, onRefreshToken);
 
 /**
  * Access Lists

@@ -8,6 +8,7 @@ export interface Map {
   connections?: Record<string, SystemConnection>;
   systems?: Record<string, SolarSystem>;
   accessList?: Record<number, UserAccess>;
+  alerts?: MapAlert[];
 }
 
 export interface SystemConnection {
@@ -30,4 +31,17 @@ export interface SolarSystem {
   signatures?: string[];
   sourceId: number;
   status: string;
+}
+
+export interface MapAlert {
+  owner: {
+    id: string;
+    name: string;
+  };
+  webhook: string;
+  watchlist: {
+    systems: number[];
+    constellations: number[];
+    regions: number[];
+  }
 }
