@@ -64,3 +64,15 @@ spec:
       name: api-service
       port:
         number: 8000
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: eve-online-gateway
+  namespace: gateway-webapi
+spec:
+  listeners:
+  - name: https
+    protocol: HTTPS
+    port: 443
+    
