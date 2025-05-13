@@ -1,10 +1,11 @@
 import { KillMail } from '../../../models/KillMails';
-import { database, Change } from 'firebase-functions';
+import { Change } from 'firebase-functions';
 import { compareAsc } from 'date-fns';
+import { DatabaseEvent, DataSnapshot } from 'firebase-functions/database';
 
-export const onNewKillAdded = async (change: Change<database.DataSnapshot>) => {
-  if (change.after.numChildren() > 6) {
-    const kills: Record<number, KillMail> = change.after.val();
+export const onNewKillAdded = async (event: DatabaseEvent<Change<DataSnapshot>, { systemId: string; }>) => {
+  if (event.data.after.numChildren() > 6) {
+    const kills: Record<number, KillMail> = event.data.after.val();
     const old = [];
 
     const latest = Object.keys(kills).sort((a, b) => {
@@ -19,7 +20,7 @@ export const onNewKillAdded = async (change: Change<database.DataSnapshot>) => {
     }
 
     Promise.all(old.map(
-      id => change.after.child(id).ref.remove()
+      id => event.data.after.child(id).ref.remove()
     ));
   }
 };

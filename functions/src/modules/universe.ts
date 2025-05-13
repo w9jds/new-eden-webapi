@@ -1,4 +1,5 @@
-import { database, Change } from 'firebase-functions';
+import { Change } from 'firebase-functions';
+import { DatabaseEvent, DataSnapshot } from 'firebase-functions/database';
 import { error } from 'firebase-functions/logger';
 import { compareAsc } from 'date-fns';
 import fetch from 'node-fetch';
@@ -59,17 +60,18 @@ export const updateSystemStatistics = async () => {
   ));
 };
 
-export const onNewStatisticAdded = async (change: Change<database.DataSnapshot>) => {
-  if (change.after.hasChild('kills')) {
-    change.after.child('kills').ref.remove();
+
+export const onNewStatisticAdded = async (event: DatabaseEvent<Change<DataSnapshot>, { systemId: string; }>) => {
+  if (event.data.after.hasChild('kills')) {
+    event.data.after.child('kills').ref.remove();
   }
 
-  if (change.after.hasChild('jumps')) {
-    change.after.child('jumps').ref.remove();
+  if (event.data.after.hasChild('jumps')) {
+    event.data.after.child('jumps').ref.remove();
   }
 
-  if (change.after.numChildren() > 24) {
-    const statistics: Record<string, SystemStatistics> = change.after.val();
+  if (event.data.after.numChildren() > 24) {
+    const statistics: Record<string, SystemStatistics> = event.data.after.val();
     const old = [];
 
     const latest = Object.keys(statistics).sort((a, b) => {
@@ -84,7 +86,7 @@ export const onNewStatisticAdded = async (change: Change<database.DataSnapshot>)
     }
 
     Promise.all(old.map(
-      id => change.after.child(id).ref.remove()
+      id => event.data.after.child(id).ref.remove()
     ));
   }
 };

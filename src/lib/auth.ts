@@ -18,7 +18,7 @@ const verifyResponse = async (method: string, response: Response): Promise<any |
     return;
   }
 
-  await logging.logHttp(method, response, await response.text());
+  // await logging.logHttp(method, response, await response.text());
 
   return {
     error: true,

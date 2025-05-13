@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { auth } from 'firebase-admin';
-import { EventContext, Change, database } from 'firebase-functions';
+import { Change } from 'firebase-functions';
+import { DatabaseEvent, DataSnapshot } from 'firebase-functions/database';
 import { error } from 'firebase-functions/logger';
 import { CloudTasksClient } from '@google-cloud/tasks';
 
@@ -9,16 +10,16 @@ import { Permissions } from 'node-esi-stackdriver';
 import { isAfter } from 'date-fns';
 import { info, warn } from 'console';
 
-export const onRolesChanged = async (change: Change<database.DataSnapshot>, context?: EventContext) => {
-  const newRoles = change.after.val() as string[];
-  const user = await auth().getUser(context.params.userId);
+export const onRolesChanged = async (event: DatabaseEvent<Change<DataSnapshot>, { userId: string }>) => {
+  const newRoles = event.data.after.val() as string[];
+  const user = await auth().getUser(event.params.userId);
 
   if (!user) {
-    error(`Auth user record not found for ${context.params.userId}`);
+    error(`Auth user record not found for ${event.params.userId}`);
   }
 
   if (newRoles && newRoles.indexOf('Director')) {
-    await auth().setCustomUserClaims(context.params.userId, {
+    await auth().setCustomUserClaims(event.params.userId, {
       director: true,
       recruiter: true,
       leadership: true,
@@ -26,7 +27,7 @@ export const onRolesChanged = async (change: Change<database.DataSnapshot>, cont
   }
 
   if (!newRoles || newRoles.indexOf('Director') < 0) {
-    await auth().setCustomUserClaims(context.params.userId, {
+    await auth().setCustomUserClaims(event.params.userId, {
       director: false,
       recruiter: false,
       leadership: false,
@@ -34,19 +35,19 @@ export const onRolesChanged = async (change: Change<database.DataSnapshot>, cont
   }
 };
 
-export const createRefreshTask = async (change: Change<database.DataSnapshot>, context: EventContext) => {
-  const eventAgeMs = Date.now() - Date.parse(context.timestamp);
+export const createRefreshTask = async (event: DatabaseEvent<Change<DataSnapshot>, { characterId: string }>) => {
+  const eventAgeMs = Date.now() - Date.parse(event.time);
   const eventMaxAgeMs = 300000;
   if (eventAgeMs > eventMaxAgeMs) {
-    error(`Dropping event ${context.eventId} with age[ms]: ${eventAgeMs}`);
+    error(`Dropping event ${event.id} with age[ms]: ${eventAgeMs}`);
     return;
   }
 
   const queueName = 'refresh-token-queue';
-  const taskRef = global.firebase.ref(`tasks/${context.params.characterId}/tokens`);
-  const sso: Permissions = change.after.val();
+  const taskRef = global.firebase.ref(`tasks/${event.params.characterId}/tokens`);
+  const sso: Permissions = event.data.after.val();
 
-  if (context.eventType.endsWith('delete')) {
+  if (event.type.endsWith('delete')) {
     const scheduled = await taskRef.once('value');
     if (scheduled && scheduled.exists()) {
       const client = new CloudTasksClient();
@@ -59,7 +60,7 @@ export const createRefreshTask = async (change: Change<database.DataSnapshot>, c
   }
 
   if (!sso || !sso.refreshToken) {
-    warn(`User ${context.params.characterId} has no SSO validated.`);
+    warn(`User ${event.params.characterId} has no SSO validated.`);
     return Promise.resolve('User has no SSO validated.');
   }
 
@@ -79,17 +80,17 @@ export const createRefreshTask = async (change: Change<database.DataSnapshot>, c
       }
     } catch (err) {
       warn(`Task ${scheduled.child('name').val()} doesn't exist, clearing out cached name and creating new one`, err);
-      await global.firebase.ref(`tasks/${context.params.characterId}`).remove();
+      await global.firebase.ref(`tasks/${event.params.characterId}`).remove();
     }
   }
 
   try {
     const now = new Date();
     const parent = client.queuePath(ProjectId, TaskConfigs.Location, queueName);
-    const serialized = JSON.stringify({ characterId: context.params.characterId });
+    const serialized = JSON.stringify({ characterId: event.params.characterId });
     const body = Buffer.from(serialized).toString('base64');
 
-    const taskName = `${context.params.characterId}_${context.eventId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    const taskName = `${event.params.characterId}_${event.id.replace(/[^a-zA-Z0-9]/g, '_')}`;
 
     const task: any = {
       name: client.taskPath(ProjectId, TaskConfigs.Location, queueName, taskName),
@@ -118,7 +119,7 @@ export const createRefreshTask = async (change: Change<database.DataSnapshot>, c
       scheduleTime: !isAfter(now, expiresAt) ? (expiresAt.getTime() / 1000) - 300 : now,
     });
   } catch (err) {
-    error(`Failed to create task for ${context.params.characterId}`, err);
+    error(`Failed to create task for ${event.params.characterId}`, err);
     return Promise.reject(err);
   }
 };

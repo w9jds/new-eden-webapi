@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { database } from 'firebase-admin';
-import { https, Response } from 'firebase-functions';
+import { Response } from 'express';
+import { Request } from 'firebase-functions/v2/https';
 import { info, warn, error } from 'firebase-functions/logger';
 import { addSeconds } from 'date-fns';
 import { Character } from 'node-esi-stackdriver';
 import { refresh, verify } from '../lib/Auth';
 
-const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Reference, resp, req: https.Request, result: Response): Promise<any> => {
+const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Reference, resp, req: Request, result: Response): Promise<any> => {
   const { 'x-cloudtasks-taskretrycount': retryCount } = req.headers;
 
   let content;
@@ -55,7 +56,7 @@ const onRefreshError = async (user: database.DataSnapshot, taskRef: database.Ref
   result.status(500).send(payload);
 };
 
-export const onRefreshToken = async (req: https.Request, resp: Response<any>) => {
+export const onRefreshToken = async (req: Request, resp: Response) => {
   const request = req.body;
   const taskRef = global.firebase.ref(`tasks/${request.characterId}/tokens`);
   const snapshot: database.DataSnapshot = await global.firebase.ref(`characters/${request.characterId}`).once('value');

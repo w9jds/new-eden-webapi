@@ -1,29 +1,65 @@
+import { Change } from 'firebase-functions';
 import { database as db } from 'firebase-admin';
-import { database, EventContext } from 'firebase-functions';
+import { createClient } from 'redis';
+import { DataSnapshot, DatabaseEvent } from 'firebase-functions/v2/database';
 
 import { UserAgent } from '../config/constants';
-import { Esi, Title } from 'node-esi-stackdriver';
+import { Character, Esi, Title } from 'node-esi-stackdriver';
 
 export default class CharacterHandlers {
+  private redis: ReturnType<typeof createClient>;
   private esi: Esi;
 
   constructor() {
     this.esi = new Esi(UserAgent, {
       projectId: 'new-eden-storage-a5c23',
     });
+
+    const redis = createClient({
+      socket: {
+        host: '10.61.16.195',
+        port: 6379,
+      },
+    });
+
+    redis.on('error', err => console.error('ERR:REDIS:', err));
+    redis.connect();
+
+    this.redis = redis;
   }
 
-  public onNewCharacter = async (snapshot: database.DataSnapshot, context?: EventContext) => {
-    await snapshot.child('createdAt').ref.set(Date.now());
-    return this.populateCharacterInfo(context.params.characterId, snapshot.child('sso/accessToken').val(), snapshot.ref);
+  public onNewCharacter = async (event: DatabaseEvent<DataSnapshot, { characterId: string; }>) => {
+    await event.data.child('createdAt').ref.set(Date.now());
+    return this.populateCharacterInfo(event.params.characterId, event.data.child('sso/accessToken').val(), event.data.ref);
   };
 
-  public onCharacterLogin = (snapshot: database.DataSnapshot, context?: EventContext) => {
-    return this.populateCharacterInfo(context.params.characterId, snapshot.child('accessToken').val(), snapshot.ref.parent);
+  public onCharacterLogin = async (event: DatabaseEvent<DataSnapshot, { characterId: string; }>) => {
+    return this.populateCharacterInfo(event.params.characterId, event.data.child('accessToken').val(), event.data.ref.parent);
   };
 
-  public onCharacterDeleted = (snapshot: database.DataSnapshot, context?: EventContext) => {
-    return global.firebase.ref(`locations/${context.params.characterId}`).remove();
+  public onCharacterDeleted = async (event: DatabaseEvent<DataSnapshot, { characterId: string; }>) => {
+    this.redis.del(`characters:${event.params.characterId}`);
+
+    return global.firebase.ref(`locations/${event.params.characterId}`).remove();
+  };
+
+  public onCharacterUpdate = async (event: DatabaseEvent<Change<DataSnapshot>, { characterId: string; }>) => {
+    const character: Character = event.data.after.val();
+
+    if (!character.sso) {
+      return this.redis.del(`characters:${event.params.characterId}`);
+    }
+
+    const details = {
+      name: character.name,
+      id: +event.params.characterId,
+      accountId: character.accountId,
+      allianceId: character.allianceId,
+      corpId: character.corpId,
+      sso: character.sso,
+    };
+
+    return this.redis.set(`characters:${event.params.characterId}`, JSON.stringify(details));
   };
 
   private populateCharacterInfo = async (characterId: string, accessToken: string, ref: db.Reference) => {
