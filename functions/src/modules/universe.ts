@@ -5,6 +5,7 @@ import { compareAsc } from 'date-fns';
 import fetch from 'node-fetch';
 
 import { ScoutSignature } from './../../../models/EveScout';
+import { createClient } from 'redis';
 
 export type SystemStatistics = {
   processed_at: number;
@@ -17,6 +18,17 @@ export type SystemStatistics = {
 }
 
 export const updateSystemStatistics = async () => {
+  const redis = createClient({
+    socket: {
+      host: '10.61.16.195',
+      port: 6379,
+    },
+  });
+
+  redis.on('error', err => console.error('ERR:REDIS:', err));
+  redis.connect();
+
+  const pipeline = redis.multi();
   const updates: Record<string, SystemStatistics> = {};
   const stats = await Promise.all([
     global.esi.getSystemKills(),
@@ -55,9 +67,18 @@ export const updateSystemStatistics = async () => {
     }
   }
 
-  Promise.all(Object.keys(updates).map(
-    id => global.firebase.ref(`universe/systems/k_space/${id}/statistics`).push(updates[id])
-  ));
+  const hour = new Date();
+  hour.setMinutes(0, 0, 0);
+
+  const operations = Object.keys(updates).map(
+    id => {
+      pipeline.set(`universe:statistics:${id}:${hour.getTime()}`, JSON.stringify(updates[id]), { EX: 172800 });
+      return global.firebase.ref(`universe/systems/k_space/${id}/statistics`).push(updates[id]);
+    }
+  );
+
+  operations.push(pipeline.exec());
+  await Promise.all(operations);
 };
 
 
