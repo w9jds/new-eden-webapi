@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { APIEmbed, WebhookClient } from 'discord.js';
-// import { info } from 'firebase-functions/logger';
 import { DataSnapshot, DatabaseEvent } from 'firebase-functions/v2/database';
 
 import Metadata, { SolarSystemDetails } from '../data/systems';
@@ -302,7 +301,7 @@ export const notifySystemAdded = async (event: DatabaseEvent<DataSnapshot, { sys
     const system: SolarSystem = event.data.val();
     const data = Metadata.find(metadata => metadata.solarSystemID == +event.data.key);
 
-    const {name, alerts} = await Promise
+    const { name, alerts } = await Promise
       .all([
         global.firebase.ref(`maps/${event.params.mapId}/name`).once('value'),
         global.firebase.ref(`maps/${event.params.mapId}/alerts`).once('value'),
@@ -361,7 +360,7 @@ const pushSystemWebhook = async (webhook: string, content: string, system: Solar
   // https://evemaps.dotlan.net/map/The_Forge/Jita
   // https://evemaps.dotlan.net/map/The_Forge/Kimotoro
 
-  const client = new WebhookClient({url: webhook});
+  const client = new WebhookClient({ url: webhook });
   client.send({
     username: 'GalaxyFinder',
     avatarURL: 'https://content.eveonline.com/www/newssystem/media/65281/1/auralogo.png',

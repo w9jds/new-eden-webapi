@@ -1,4 +1,4 @@
-import { Change, EventContext } from 'firebase-functions';
+import { Change, EventContext } from 'firebase-functions/v1';
 import { error } from 'firebase-functions/logger';
 
 import { Character } from 'node-esi-stackdriver';
@@ -113,20 +113,3 @@ export const signatureDeleted = async (snapshot: DataSnapshot, context: EventCon
       .catch(err => error(err));
   }
 };
-
-// export const pricesUpdated = async (change: Change<DataSnapshot>, context: EventContext) => {
-//   const current: DataSnapshot = change.after;
-//   const rows = [];
-
-//   current.forEach(child => {
-//     rows.push({
-//       market: context.params.marketId,
-//       type_id: child.key,
-//       ...child.val(),
-//     });
-//   });
-
-//   const table = await getTable('market', 'price_history');
-//   await table.insert(rows)
-//     .catch(err => error(err));
-// };

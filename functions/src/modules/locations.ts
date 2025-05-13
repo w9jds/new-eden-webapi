@@ -1,8 +1,6 @@
-import { database, Change, EventContext } from 'firebase-functions';
+import { Change } from 'firebase-functions/v2';
+import { DatabaseEvent, DataSnapshot } from 'firebase-functions/database';
 
-export default class LocationHandlers {
-  public onAffiliationsUpdate = (change: Change<database.DataSnapshot>, context?: EventContext) => {
-    return global.firebase.ref(`locations/${change.before.val()}/${context.params.userId}`)
-      .transaction(() => null);
-  };
-}
+export const onAffiliationsUpdate = (event: DatabaseEvent<Change<DataSnapshot>, { userId: string }>) => {
+  return global.firebase.ref(`locations/${event.data.before.val()}/${event.params.userId}`).transaction(() => null);
+};
