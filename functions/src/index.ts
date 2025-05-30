@@ -13,13 +13,13 @@ import AccessLists from './modules/accesslists';
 
 import { signatureUpdated, signatureCreated, signatureDeleted } from './modules/analytics';
 import { updateSystemStatistics, updateHubConnections, onNewStatisticAdded } from './modules/universe';
+import { accountAdded, notifySystemAdded } from './modules/discord';
 import { onRolesChanged, createRefreshTask } from './modules/auth';
-import { onAffiliationsUpdate } from './modules/locations';
 import { updateWarfareSystems } from './modules/factionWarfare';
+import { onAffiliationsUpdate } from './modules/locations';
+import { updateSovSystems } from './modules/sovereignty';
 import { onRefreshToken } from './modules/taskHandlers';
 import { onNewKillAdded } from './modules/killMails';
-import { updateSovSystems } from './modules/sovereignty';
-import { notifySystemAdded } from './modules/discord';
 
 global.app = admin.initializeApp();
 global.firebase = global.app.database();
@@ -63,7 +63,16 @@ export const onKillAdded = onValueUpdated('kills/{systemId}', onNewKillAdded);
 
 export const onStatisticAdded = onValueUpdated('universe/systems/k_space/{systemId}/statistics', onNewStatisticAdded);
 
+/**
+ * Discord
+ */
+
 export const onSystemAdded = onValueCreated('maps/{mapId}/systems/{systemId}', notifySystemAdded);
+
+export const onDiscordAdded = onValueCreated(
+  { ref: 'discord/{memberId}', secrets: ['DISCORD_BOT_TOKEN'] },
+  accountAdded
+);
 
 /**
  * Cloud Task Managers

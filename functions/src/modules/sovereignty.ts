@@ -1,18 +1,18 @@
-import { Esi } from 'node-esi-stackdriver';
 import { error } from 'firebase-functions/logger';
-
-import { UserAgent, ProjectId } from '../config/constants';
+import { ErrorResponse, SovereigntySystem } from 'node-esi-stackdriver';
+import { createRedisClient } from './redis';
 import { onlyUnique } from '../utils';
 
 export const updateSovSystems = async () => {
-  const esi = new Esi(UserAgent, { projectId: ProjectId });
-  const sov = await esi.getSovMap();
+  const redis = createRedisClient();
+  const sov: SovereigntySystem[] | ErrorResponse = await global.esi.getSovMap();
 
   if ('error' in sov) {
     error(sov);
     throw new Error('Failed to fetch sov map');
   }
 
+  const pipeline = redis.multi();
   const ids = sov.flatMap(system => {
     const ids = [];
 
@@ -24,10 +24,13 @@ export const updateSovSystems = async () => {
       ids.push(system.corporation_id);
     }
 
+    pipeline.set(`universe:sovereignty:${system.system_id}`, JSON.stringify(system), { EX: 4500 });
     return ids;
   });
 
-  const references = await esi.getNames(ids.filter(onlyUnique));
+  pipeline.exec();
+
+  const references = await global.esi.getNames(ids.filter(onlyUnique));
   if ('error' in references) {
     error(references);
     throw new Error('Failed to resolve id names');

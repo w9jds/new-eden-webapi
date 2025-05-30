@@ -5,7 +5,7 @@ import { compareAsc } from 'date-fns';
 import fetch from 'node-fetch';
 
 import { ScoutSignature } from './../../../models/EveScout';
-import { createClient } from 'redis';
+import { createRedisClient } from './redis';
 
 export type SystemStatistics = {
   processed_at: number;
@@ -18,17 +18,9 @@ export type SystemStatistics = {
 }
 
 export const updateSystemStatistics = async () => {
-  const redis = createClient({
-    socket: {
-      host: '10.61.16.195',
-      port: 6379,
-    },
-  });
-
-  redis.on('error', err => console.error('ERR:REDIS:', err));
-  redis.connect();
-
+  const redis = createRedisClient();
   const pipeline = redis.multi();
+
   const updates: Record<string, SystemStatistics> = {};
   const stats = await Promise.all([
     global.esi.getSystemKills(),
@@ -57,7 +49,7 @@ export const updateSystemStatistics = async () => {
         updates[content.system_id].kills = {
           podKills: content.pod_kills || 0,
           shipKills: content.ship_kills || 0,
-          npcKills: content.npm_kills || 0,
+          npcKills: content.npc_kills || 0,
         };
       }
 
@@ -72,7 +64,7 @@ export const updateSystemStatistics = async () => {
 
   const operations = Object.keys(updates).map(
     id => {
-      pipeline.set(`universe:statistics:${id}:${hour.getTime()}`, JSON.stringify(updates[id]), { EX: 172800 });
+      pipeline.set(`universe:statistics:${id}:${hour.getTime()}`, JSON.stringify(updates[id]), { EX: 604800 });
       return global.firebase.ref(`universe/systems/k_space/${id}/statistics`).push(updates[id]);
     }
   );

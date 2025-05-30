@@ -2,9 +2,10 @@
 import { APIEmbed, WebhookClient } from 'discord.js';
 import { DataSnapshot, DatabaseEvent } from 'firebase-functions/v2/database';
 
+import { SystemStatistics } from './universe';
 import Metadata, { SolarSystemDetails } from '../data/systems';
 import { MapAlert, SolarSystem } from '../../../models/Map';
-import { SystemStatistics } from './universe';
+import { DiscordAccount } from '../../../models/User';
 import { getClassName } from '../utils';
 
 // export default class DiscordHandlers {
@@ -295,6 +296,16 @@ import { getClassName } from '../utils';
 //     return;
 //   };
 // }
+
+export const accountAdded = async (event: DatabaseEvent<DataSnapshot, { memberId: string; }>) => {
+  const account: DiscordAccount = event.data.val();
+
+  return;
+};
+
+export const affiliationsUpdated = async () => {
+  
+} 
 
 export const notifySystemAdded = async (event: DatabaseEvent<DataSnapshot, { systemId: string; mapId: string; }>) => {
   if (+event.data.key) {

@@ -1,19 +1,25 @@
-import { Esi } from 'node-esi-stackdriver';
+import { ErrorResponse, WarfareSystem } from 'node-esi-stackdriver';
 import { error } from 'firebase-functions/logger';
-import { ProjectId, UserAgent } from '../config/constants';
 import { onlyUnique } from '../utils';
+import { createRedisClient } from './redis';
 
 export const updateWarfareSystems = async () => {
-  const esi = new Esi(UserAgent, { projectId: ProjectId });
-  const fw = await esi.getFwSystems();
+  const redis = createRedisClient();
+  const pipeline = redis.multi();
 
+  const fw: WarfareSystem[] | ErrorResponse = await global.esi.getFwSystems();
   if ('error' in fw) {
     error(fw);
     throw new Error('Failed to fetch faction warfare systems');
   }
 
-  const ids = fw.flatMap(warfare => [warfare.owner_faction_id, warfare.occupier_faction_id]);
-  const references = await esi.getNames(ids.filter(onlyUnique));
+  const ids = fw.flatMap(warfare => {
+    pipeline.set(`universe:faction_warfare:${warfare.solar_system_id}`, JSON.stringify(warfare), { EX: 2700 });
+    return [warfare.owner_faction_id, warfare.occupier_faction_id];
+  });
+
+  pipeline.exec();
+  const references = await global.esi.getNames(ids.filter(onlyUnique));
   if ('error' in references) {
     error(references);
     throw new Error('Failed to resolve id names');
